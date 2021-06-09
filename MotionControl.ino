@@ -19,20 +19,23 @@ int main(void){
 
   while(1){
 
-    delay(500);
     
     add_move_to_buffer(50, 0, 0.0, t);
     add_move_to_buffer(d, 0, t, t);
     add_move_to_buffer(50, 0, t,0.0);
 
+    
     add_move_to_buffer(50, Y_AXIS, 0.0, t);
     add_move_to_buffer(d,  Y_AXIS, t, t);
     add_move_to_buffer(50, Y_AXIS, t,0.0);
+    
+    add_move_to_buffer(1000, DWELL, t,0.0);
     
     add_move_to_buffer(50, INVERT, 0.0, t);
     add_move_to_buffer(d, INVERT, t, t);
     add_move_to_buffer(50, INVERT, t,0.0);
 
+    
     add_move_to_buffer(50, Y_AXIS | INVERT, 0.0, t);
     add_move_to_buffer(d,  Y_AXIS | INVERT, t, t);
     add_move_to_buffer(50, Y_AXIS | INVERT, t,0.0);
@@ -48,7 +51,7 @@ int main(void){
       Serial.println(mstate.buffer_size);
       Serial.println(mstate.steps);
       
-      delay(500);
+      delay(100);
     }
     Serial.print("Ending motion with moves:");
     Serial.println(mstate.buffer_size);

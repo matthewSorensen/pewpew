@@ -82,6 +82,11 @@ uint32_t initialize_next_seg(uint32_t first){
   mstate.velocity = mstate.move->start_velocity;
   dir = mstate.move->direction;
   mstate.direction = dir;
+
+  // If it's a dwell move, don't calculate acceleration or step masks
+  if(dir & DWELL)
+    return 1;
+  
   // And then compute how long this move will take, as a way to find the accleration
   dt = 2 * mstate.steps / (mstate.velocity + mstate.move->end_velocity);
   mstate.acceleration = (mstate.move->end_velocity - mstate.velocity) / dt;
@@ -128,6 +133,23 @@ void stepper_isr(void){
   PIT_TFLG1 = TIF;
 
   if(mstate.move != NULL){
+    if(mstate.direction & DWELL){
+      // If this is our first PIT1 interrupt for this segment, set the timmer and wait
+      if(mstate.steps != 0){
+	PIT_LDVAL1 = 1000 * TICKS_PER_US * mstate.steps;
+	mstate.steps = 0;
+	PIT_TCTRL1 = TIE | TEN;
+	return;
+      }else{
+	// Otherwise, grab the next segment, and manually start it...
+	if(initialize_next_seg(0)){
+	  manual_trigger = 1;
+	  stepper_isr();
+	}
+      }
+    }
+
+    
  
     // Output the next pulse, and trigger the pulse reset ISR
     mstate.steps -= 1;
