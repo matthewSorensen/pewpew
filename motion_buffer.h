@@ -1,16 +1,12 @@
 #ifndef motion_buffer_h
 #define motion_buffer_h
 #include <stdint.h>
-
-#define INVERT 1
-#define Y_AXIS 2
-
+#include "pin_maps.h"
 
 typedef struct motion_segment_t {
-  uint32_t steps;
-  uint32_t direction;
   double start_velocity;
-  double end_velocity; 
+  double end_velocity;
+  double coords[NUM_AXIS];
 } motion_segment_t;
 
 typedef struct motion_state_t {
@@ -19,11 +15,11 @@ typedef struct motion_state_t {
   uint32_t buffer_size;
   motion_segment_t* move;
   // State of the current move:
-  uint32_t steps; // How many steps left in the segment?
   double velocity; // What's the velocity at the end of the last step?
   double acceleration; // Acceleration over this segment?
-  uint32_t direction; // Direction field direct from the move?
 
+  double end[NUM_AXIS];
+  
   uint32_t step_bitmask; // What bits did we just set in the last step?
   uint32_t dir_bitmask;  // What's the current state of the direction bits?
   uint32_t delay; // How long should we delay?
@@ -38,7 +34,7 @@ extern volatile motion_state_t mstate;
 
 void initialize_motion_state(void);
 uint32_t free_buffer_spaces(void);
-uint32_t add_move_to_buffer(uint32_t steps, uint32_t direction, double start_velocity, double end_velocity);
+uint32_t add_move_to_buffer(double x, double y, double start_velocity, double end_velocity);
 void start_motion(void);
 void stepper_isr(void);
 

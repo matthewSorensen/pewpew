@@ -1,4 +1,9 @@
 #ifndef pin_maps_h
+#define pin_maps_h
+
+#include <stdint.h>
+
+#define NUM_AXIS 2
 
 #define X_STEP 19
 #define X_DIR  20
@@ -30,6 +35,10 @@
 
 #define SET_PIN_(pin) {CORE_PIN##pin##_PORTSET = CORE_PIN##pin##_BITMASK;}
 #define SET_PIN(pin)  SET_PIN_(pin)
+
+
+extern const uint32_t axis_to_step[NUM_AXIS];
+extern const uint32_t axis_to_dir[NUM_AXIS];
 
 
 #endif

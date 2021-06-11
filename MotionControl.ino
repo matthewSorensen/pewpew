@@ -1,6 +1,7 @@
 #include "core_pins.h"
 #include "motion_buffer.h"
 #include "pin_maps.h"
+#include "dda.h"
 
 
 int main(void){
@@ -18,25 +19,31 @@ int main(void){
   uint32_t d = 1000;
 
   while(1){
-
     
     add_move_to_buffer(50, 0, 0.0, t);
-    add_move_to_buffer(d, 0, t, t);
-    add_move_to_buffer(50, 0, t,0.0);
+    add_move_to_buffer(d + 50, 0, t, t);
+    add_move_to_buffer(d + 100, 0, t, 0.0);
+
+    add_move_to_buffer(d + 100, 50, 0.0, t);
+    add_move_to_buffer(d + 100, d + 50,  t, t);
+    add_move_to_buffer(d + 100, d + 100, t, 0.0);
+    
+    add_move_to_buffer(d + 50, d + 100, 0.0, t);
+    add_move_to_buffer(50,  d + 100, t, t);
+    add_move_to_buffer(0, d + 100, t, 0.0);
+
+    add_move_to_buffer(0, d + 50, 0.0, t);
+    add_move_to_buffer(0, 50, t, t);
+    add_move_to_buffer(0, 0, t, 0.0);
+
+    add_move_to_buffer(50, 50, 0.0, t);
+    add_move_to_buffer(500, 500, t, t);
+    add_move_to_buffer(550, 550, t, 0.0);
+    add_move_to_buffer(500, 500, 0.0, t);
+    add_move_to_buffer(50, 50, t, t);
+    add_move_to_buffer(0, 0, t, 0.0);
 
     
-    add_move_to_buffer(50, Y_AXIS, 0.0, t);
-    add_move_to_buffer(d,  Y_AXIS, t, t);
-    add_move_to_buffer(50, Y_AXIS, t,0.0);
-    
-    add_move_to_buffer(50, INVERT, 0.0, t);
-    add_move_to_buffer(d, INVERT, t, t);
-    add_move_to_buffer(50, INVERT, t,0.0);
-
-    
-    add_move_to_buffer(50, Y_AXIS | INVERT, 0.0, t);
-    add_move_to_buffer(d,  Y_AXIS | INVERT, t, t);
-    add_move_to_buffer(50, Y_AXIS | INVERT, t,0.0);
 
     
     Serial.print("Begining motion with moves:");
@@ -46,10 +53,13 @@ int main(void){
 
   
     while(mstate.move){
-      Serial.println(mstate.buffer_size);
-      Serial.println(mstate.steps);
+      Serial.print(mstate.buffer_size);
+      Serial.print(' ');
+      Serial.print(dda.length_acc);
+      Serial.print(' ');
+      Serial.println(dda.length);
       
-      delay(100);
+      delay(200);
     }
     Serial.print("Ending motion with moves:");
     Serial.println(mstate.buffer_size);

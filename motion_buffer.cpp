@@ -3,6 +3,7 @@
 #include "motion_buffer.h"
 #include "core_pins.h"
 #include "pin_maps.h"
+#include "dda.h"
 
 #define TIE 2
 #define TEN 1
@@ -12,6 +13,9 @@
 #define TICKS_PER_US 150
 // How long do we leave the pin high? Datasheet says 2.5us, but...
 #define STEP_PULSE_LENGTH 10
+
+#define Y_AXIS 1
+#define INVERT 2
 
 
 motion_segment_t motion_buffer[MOTION_BUFFER_SIZE];
@@ -31,6 +35,9 @@ void initialize_motion_state(void){
   mstate.buffer_size = 0;  
   mstate.move = NULL;
 
+  for(int i = 0; i < NUM_AXIS; i++){
+    mstate.end[i] = 0.0;
+  }
   manual_trigger = 0;
 }
 
@@ -39,15 +46,16 @@ uint32_t free_buffer_spaces(void){
 }
 
 
-uint32_t add_move_to_buffer(uint32_t steps, uint32_t direction, double start_velocity, double end_velocity){
+uint32_t add_move_to_buffer(double x, double y, double start_velocity, double end_velocity){
   if(free_buffer_spaces() < 1)
     return 0;
   motion_segment_t* seg = &motion_buffer[(mstate.current_move + mstate.buffer_size) & MOTION_BUFFER_MASK];
-  seg->steps = steps;
-  seg->direction = direction;
+ 
   seg->start_velocity = start_velocity;
   seg->end_velocity = end_velocity;
-
+  seg->coords[0] = x;
+  seg->coords[1] = y;
+  
   mstate.buffer_size += 1;
   return 1;
 }
@@ -55,20 +63,16 @@ uint32_t add_move_to_buffer(uint32_t steps, uint32_t direction, double start_vel
 void compute_next_step(void){
   double dt;
   double v;
+  double length;
+  uint32_t steps = compute_step(&length);
   // If there are no more steps in this segment, signal that and fail
-  if(mstate.steps == 0){
+  if(steps == 0){
     mstate.step_bitmask = 0;
     return;
   }
-  // Otherwise, grab a step and set the step bits
-  if(mstate.direction & Y_AXIS){
-    mstate.step_bitmask = PIN_BITMASK(Y_STEP);
-  }else{
-    mstate.step_bitmask = PIN_BITMASK(X_STEP);
-  }
-  mstate.steps -= 1;
+  mstate.step_bitmask = steps;
   // Figure out how long until the next step
-  v = mstate.velocity*mstate.velocity + 2 * mstate.acceleration;
+  v = mstate.velocity*mstate.velocity + 2 * mstate.acceleration * length;
   if(v < 0.0){
     v = 0.0;
   }else{
@@ -81,8 +85,8 @@ void compute_next_step(void){
 }
 
 uint32_t initialize_next_seg(uint32_t first){
+  motion_segment_t* move;
   double dt;
-  uint32_t dir;
   // If we're not starting a series of moves, advance along the ring buffer and
   // release the previous move.
   if(!first){
@@ -93,30 +97,23 @@ uint32_t initialize_next_seg(uint32_t first){
   // current state and fail.
   if(mstate.buffer_size == 0){
     mstate.move = NULL;
-    mstate.steps = 0;
-    mstate.velocity = 0;
-    mstate.acceleration = 0;
     return 0;
+  }else{
+    move = &motion_buffer[mstate.current_move];
+    mstate.move = move;
   }
-  // Otherwise, copy a bunch of fields
-  mstate.move = &motion_buffer[mstate.current_move];
-  mstate.steps = mstate.move->steps;
-  mstate.velocity = mstate.move->start_velocity;
-  dir = mstate.move->direction;
-  mstate.direction = dir;
-  
+  // Initialize the dda, from the end point of the last move, and the end of the new one, giving us
+  // our new direction mask
+  mstate.dir_bitmask = initialize_dda(mstate.end, move->coords);
+  // Then we can update the end coordinates and velocity
+  for(int i = 0; i<NUM_AXIS; i++){
+    mstate.end[i] = move->coords[i];
+  }
+  mstate.velocity = mstate.move->start_velocity; 
   // And then compute how long this move will take, as a way to find the accleration
-  dt = 2 * mstate.steps / (mstate.velocity + mstate.move->end_velocity);
+  dt = 2 * dda.length / (mstate.velocity + mstate.move->end_velocity);
   mstate.acceleration = (mstate.move->end_velocity - mstate.velocity) / dt;
 
-  // Figure out what the direction pins should be
-  mstate.dir_bitmask = 0;
-  if(dir & INVERT){
-    if(dir & Y_AXIS)
-      mstate.dir_bitmask |= PIN_BITMASK(Y_DIR);
-    else
-      mstate.dir_bitmask |= PIN_BITMASK(X_DIR);
-  }
   compute_next_step();
   return 1;
 }
