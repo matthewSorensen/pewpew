@@ -4,7 +4,6 @@
 
 #define INVERT 1
 #define Y_AXIS 2
-#define DWELL  4
 
 
 typedef struct motion_segment_t {

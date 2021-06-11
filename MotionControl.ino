@@ -29,8 +29,6 @@ int main(void){
     add_move_to_buffer(d,  Y_AXIS, t, t);
     add_move_to_buffer(50, Y_AXIS, t,0.0);
     
-    add_move_to_buffer(1000, DWELL, t,0.0);
-    
     add_move_to_buffer(50, INVERT, 0.0, t);
     add_move_to_buffer(d, INVERT, t, t);
     add_move_to_buffer(50, INVERT, t,0.0);
