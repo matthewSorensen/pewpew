@@ -12,8 +12,6 @@
 #define TICKS_PER_US 150
 // How long do we leave the pin high? Datasheet says 2.5us, but...
 #define STEP_PULSE_LENGTH 10
-#define MINIMUM_VELOCITY 1e-9
-
 
 
 motion_segment_t motion_buffer[MOTION_BUFFER_SIZE];
@@ -32,10 +30,6 @@ void initialize_motion_state(void){
   mstate.current_move = 0;
   mstate.buffer_size = 0;  
   mstate.move = NULL;
-  mstate.steps = 0;
-  mstate.velocity = 0;
-  mstate.acceleration = 0;
-  mstate.direction = 0;
 
   manual_trigger = 0;
 }
@@ -56,6 +50,34 @@ uint32_t add_move_to_buffer(uint32_t steps, uint32_t direction, double start_vel
 
   mstate.buffer_size += 1;
   return 1;
+}
+
+void compute_next_step(void){
+  double dt;
+  double v;
+  // If there are no more steps in this segment, signal that and fail
+  if(mstate.steps == 0){
+    mstate.step_bitmask = 0;
+    return;
+  }
+  // Otherwise, grab a step and set the step bits
+  if(mstate.direction & Y_AXIS){
+    mstate.step_bitmask = PIN_BITMASK(Y_STEP);
+  }else{
+    mstate.step_bitmask = PIN_BITMASK(X_STEP);
+  }
+  mstate.steps -= 1;
+  // Figure out how long until the next step
+  v = mstate.velocity*mstate.velocity + 2 * mstate.acceleration;
+  if(v < 0.0){
+    v = 0.0;
+  }else{
+    v = sqrt(v);
+  }
+  
+  dt = 2 / (mstate.velocity + v);
+  mstate.velocity = v;
+  mstate.delay = round(dt * TICKS_PER_US);
 }
 
 uint32_t initialize_next_seg(uint32_t first){
@@ -99,24 +121,16 @@ uint32_t initialize_next_seg(uint32_t first){
     else
       mstate.dir_bitmask |= PIN_BITMASK(X_DIR);
   }
-  // And the step pins - for the real version, we can't do this statically
-  if(dir & Y_AXIS){
-    mstate.step_bitmask = PIN_BITMASK(Y_STEP);
-  }else{
-    mstate.step_bitmask = PIN_BITMASK(X_STEP);
-  }
-  
+  compute_next_step();
   return 1;
 }
 
 
 void stepper_isr(void){
-  double v;
-  double dt;
   // Stepper pulse reset - reenter the ISR a few us after setting the pulse pin, and turn it off
   if(PIT_TFLG2){
-    STEP_CLEAR = mstate.step_bitmask;
-       // Stop this timer, since it's a one-shot thingy
+    STEP_CLEAR = STEP_BITMASK;
+    // Stop this timer, since it's a one-shot thingy
     PIT_TCTRL2 = 0;
     PIT_TFLG2 = TIF;
     // Output the next set of direction bits!
@@ -133,13 +147,13 @@ void stepper_isr(void){
   PIT_TFLG1 = TIF;
 
   if(mstate.move != NULL){
+    
     if(mstate.direction & DWELL){
-      // If this is our first PIT1 interrupt for this segment, set the timmer and wait
+      // If this is our first PIT1 interrupt for this segment, set the timer and wait
       if(mstate.steps != 0){
 	PIT_LDVAL1 = 1000 * TICKS_PER_US * mstate.steps;
 	mstate.steps = 0;
 	PIT_TCTRL1 = TIE | TEN;
-	return;
       }else{
 	// Otherwise, grab the next segment, and manually start it...
 	if(initialize_next_seg(0)){
@@ -147,32 +161,19 @@ void stepper_isr(void){
 	  stepper_isr();
 	}
       }
+      return;
     }
 
-    
- 
-    // Output the next pulse, and trigger the pulse reset ISR
-    mstate.steps -= 1;
-    STEP_SET = mstate.step_bitmask;
-    PIT_TCTRL2 = TIE | TEN; // enable Timer 2 interrupts
-    
-    // Figure out how long until the next step
-    v = mstate.velocity*mstate.velocity + 2 * mstate.acceleration;
-    if(v < 0.0){
-      v = 0.0;
-    }else{
-      v = sqrt(v);
+    // Output the next pulse, trigger the pulse reset ISR, and set the timer for the next round
+    if(mstate.step_bitmask){
+      STEP_SET = mstate.step_bitmask; // Output the next pulse
+      PIT_TCTRL2 = TIE | TEN; // Trigger the reset timer
+      PIT_LDVAL1 = mstate.delay; // Update the delay
+      PIT_TCTRL1 = TIE | TEN; // Trigger the next pulse
     }
-    
-    dt = 2 / (mstate.velocity + v);
-    mstate.velocity = v;
-    
-    PIT_LDVAL1 = round(dt * TICKS_PER_US);
-    PIT_TCTRL1 = TIE | TEN;
-  
-
-    // If we just took the last move in the segment, move on to the next one
-    if(mstate.steps == 0){
+      
+    compute_next_step(); // Actually compute the step bits and delay for the next pulse
+    if(mstate.step_bitmask == 0){ // If there were no steps left in the move, go on to the next one
       initialize_next_seg(0);
     }
   }
@@ -184,8 +185,6 @@ void start_motion(void){
     return;
   // Output the direction bits and wait a bit (?)
   DIR_REG = (DIR_REG & ~DIR_BITMASK) | mstate.dir_bitmask;
-
-  
   // Set up the step pulse reset timer
   PIT_LDVAL2 = STEP_PULSE_LENGTH * TICKS_PER_US;
   // Configure, but don't fire the main timing clock

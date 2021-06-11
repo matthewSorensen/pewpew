@@ -27,6 +27,7 @@ typedef struct motion_state_t {
 
   uint32_t step_bitmask; // What bits did we just set in the last step?
   uint32_t dir_bitmask;  // What's the current state of the direction bits?
+  uint32_t delay; // How long should we delay?
 } motion_state_t;
 
 // Must be a power of two
