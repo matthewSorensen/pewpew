@@ -14,8 +14,7 @@
 // How long do we leave the pin high? Datasheet says 2.5us, but...
 #define STEP_PULSE_LENGTH 10
 
-#define Y_AXIS 1
-#define INVERT 2
+#define MIN_STEP_TICKS 1500
 
 
 motion_segment_t motion_buffer[MOTION_BUFFER_SIZE];
@@ -27,7 +26,7 @@ void initialize_motion_state(void){
   // Set up the PIT timers
   CCM_CCGR1 |= CCM_CCGR1_PIT(CCM_CCGR_ON);
   PIT_MCR = 1;
-  CCM_CSCMR1 &= ~CCM_CSCMR1_PERCLK_CLK_SEL; // FBus (usually 150MHz)
+  CCM_CSCMR1 &= ~CCM_CSCMR1_PERCLK_CLK_SEL;
   NVIC_ENABLE_IRQ(IRQ_PIT);
   attachInterruptVector(IRQ_PIT,stepper_isr);
 
@@ -64,24 +63,21 @@ void compute_next_step(void){
   double dt;
   double v;
   double length;
-  uint32_t steps = compute_step(&length);
+  uint32_t step_mask = compute_step(&length);
+  uint32_t ticks;
   // If there are no more steps in this segment, signal that and fail
-  if(steps == 0){
-    mstate.step_bitmask = 0;
+  mstate.step_bitmask = step_mask;
+  if(!step_mask)
     return;
-  }
-  mstate.step_bitmask = steps;
-  // Figure out how long until the next step
+  // Figure out how long until the next step - first compute the end velocity
+  // via v^2 = v0^2 + 2 a dx
   v = mstate.velocity*mstate.velocity + 2 * mstate.acceleration * length;
-  if(v < 0.0){
-    v = 0.0;
-  }else{
-    v = sqrt(v);
-  }
-  
+  v = v <= 0.0 ? 0 : sqrt(v);
+  // Then compute how long the move will take, as we know the average velocity.
   dt = 2 / (mstate.velocity + v);
   mstate.velocity = v;
-  mstate.delay = round(dt * TICKS_PER_US);
+  ticks = round(dt * TICKS_PER_US);
+  mstate.delay = ticks < MIN_STEP_TICKS ? MIN_STEP_TICKS : ticks;
 }
 
 uint32_t initialize_next_seg(uint32_t first){
@@ -111,7 +107,7 @@ uint32_t initialize_next_seg(uint32_t first){
   }
   mstate.velocity = mstate.move->start_velocity; 
   // And then compute how long this move will take, as a way to find the accleration
-  dt = 2 * dda.length / (mstate.velocity + mstate.move->end_velocity);
+  dt = 2 * dda.qlength / (mstate.velocity + mstate.move->end_velocity);
   mstate.acceleration = (mstate.move->end_velocity - mstate.velocity) / dt;
 
   compute_next_step();

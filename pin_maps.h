@@ -39,6 +39,6 @@
 
 extern const uint32_t axis_to_step[NUM_AXIS];
 extern const uint32_t axis_to_dir[NUM_AXIS];
-
+extern const double steps_per_mm[NUM_AXIS];
 
 #endif

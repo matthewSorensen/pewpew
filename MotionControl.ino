@@ -4,6 +4,48 @@
 #include "dda.h"
 
 
+void add_move_blocking(double x, double y, double v0, double v1){
+  while(free_buffer_spaces()==0){
+    delayMicroseconds(10);
+  }
+  add_move_to_buffer(x, y, v0, v1);
+}
+
+// Good max velocity = 2 mm/s
+// Good a = 32 mm/s^2
+void add_segment(double* prev, double x, double y, double v, double a){
+  double dx, dy, l, acc_length;
+  double sx, sy, sl;
+  double spx, spy;
+  spx = steps_per_mm[0]  * prev[0];
+  spy = steps_per_mm[1]  * prev[1];
+    
+  dx = x - prev[0];
+  dy = y - prev[1];
+  sx = steps_per_mm[0] * dx;
+  sy = steps_per_mm[1] * dy;
+  l = sqrt(dx * dx + dy * dy);
+  sl = sqrt(sx * sx + sy * sy);  
+  // How long will it take to accelerate/decelerate?
+  acc_length = v*v / (2 * a);
+  if(2 * acc_length < l){
+    double sv = (v * sl / l) / 1000.0;
+    sv *= 0.001;
+    double scale = acc_length / l;
+
+    add_move_blocking(spx + scale * sx, spy + scale * sy,0,sv);
+    add_move_blocking(spx + (1 - scale) * sx,spy + (1 - scale) * sy ,sv,sv);
+    add_move_blocking(spx + sx, spy + sy,sv,0);
+  }else{
+    double sv = sqrt(a * l) * sl / (1000000 * l);
+    add_move_blocking(spx + 0.5 * sx, spy + 0.5 * sy, 0, sv);
+    add_move_blocking(spx + sx, spy + sy,sv,0);   
+  }
+  prev[0] = x;
+  prev[1] = y;
+}
+
+
 int main(void){
 
   Serial.begin(9600);
@@ -19,31 +61,29 @@ int main(void){
   uint32_t d = 1000;
 
   while(1){
-    
-    add_move_to_buffer(50, 0, 0.0, t);
-    add_move_to_buffer(d + 50, 0, t, t);
-    add_move_to_buffer(d + 100, 0, t, 0.0);
-
-    add_move_to_buffer(d + 100, 50, 0.0, t);
-    add_move_to_buffer(d + 100, d + 50,  t, t);
-    add_move_to_buffer(d + 100, d + 100, t, 0.0);
-    
-    add_move_to_buffer(d + 50, d + 100, 0.0, t);
-    add_move_to_buffer(50,  d + 100, t, t);
-    add_move_to_buffer(0, d + 100, t, 0.0);
-
-    add_move_to_buffer(0, d + 50, 0.0, t);
-    add_move_to_buffer(0, 50, t, t);
-    add_move_to_buffer(0, 0, t, 0.0);
-
-    add_move_to_buffer(50, 50, 0.0, t);
-    add_move_to_buffer(500, 500, t, t);
-    add_move_to_buffer(550, 550, t, 0.0);
-    add_move_to_buffer(500, 500, 0.0, t);
-    add_move_to_buffer(50, 50, t, t);
-    add_move_to_buffer(0, 0, t, 0.0);
 
     
+    double prev[2];
+    prev[0] = 0.0;
+    prev[1] = 0.0;
+    
+
+    for(int i = 0; i < 15; i ++){
+    
+      add_segment(prev, 2 * cos(i * 2 * 3.14156 / 15), 2 * sin(i * 2 * 3.14156 / 15), 4.0, 32.0);
+      add_segment(prev, 0.0, 0.0, 2.0, 32.0);
+    }
+
+    for(int i = 0; i < mstate.buffer_size; i ++){
+      Serial.print(motion_buffer[i].coords[0], 5);
+      Serial.print(' ');
+      Serial.print(motion_buffer[i].coords[1], 5);
+      Serial.print(' ');
+      Serial.print(motion_buffer[i].start_velocity, 5);
+      Serial.print(' ');
+      Serial.print(motion_buffer[i].end_velocity, 5);
+      Serial.println(' ');
+    }
 
     
     Serial.print("Begining motion with moves:");
@@ -55,14 +95,15 @@ int main(void){
     while(mstate.move){
       Serial.print(mstate.buffer_size);
       Serial.print(' ');
-      Serial.print(dda.length_acc);
       Serial.print(' ');
-      Serial.println(dda.length);
+      Serial.println(dda.prev_length, 5);
       
       delay(200);
     }
     Serial.print("Ending motion with moves:");
     Serial.println(mstate.buffer_size);
+
+    delay(5000);
     
   }
 }

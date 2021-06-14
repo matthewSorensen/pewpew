@@ -4,15 +4,15 @@
 
 typedef struct dda_state_h {
 
-  double start[NUM_AXIS];
-  double end[NUM_AXIS];
-  double length;
-
   double increment_vector[NUM_AXIS];
-  double increment_length;
-  
-  double length_acc;
   double error_acc[NUM_AXIS];
+
+  uint32_t done;
+  uint32_t step_count[NUM_AXIS]; // At least 10k/day, right?
+
+  double qunit[NUM_AXIS]; // Quantized unit vector - unit vector in step space
+  double qlength; // Lenght of the move in step space
+  double prev_length;
   
 } dda_state_h;
 
