@@ -4,6 +4,7 @@
 #include "core_pins.h"
 #include "pin_maps.h"
 #include "dda.h"
+#include "special_events.h"
 
 #define TIE 2
 #define TEN 1
@@ -33,7 +34,8 @@ void initialize_motion_state(void){
   mstate.current_move = 0;
   mstate.buffer_size = 0;  
   mstate.move = NULL;
-
+  mstate.is_event = 0;
+  
   for(int i = 0; i < NUM_AXIS; i++){
     mstate.end[i] = 0.0;
   }
@@ -45,11 +47,21 @@ uint32_t free_buffer_spaces(void){
 }
 
 
+// If there's space in the motion buffer for a new segment, return the segment. If not, return NULL.
+// Note that this doesn't actually record the segment as taken (by incrementing the number of elements in the buffer),
+// as otherwise the stepper ISR could see an uninitialized move!
+motion_segment_t* next_free_segment(void){
+  if(MOTION_BUFFER_SIZE <= mstate.buffer_size)
+    return NULL;
+  return  &motion_buffer[(mstate.current_move + mstate.buffer_size) & MOTION_BUFFER_MASK];
+}
+
 uint32_t add_move_to_buffer(double x, double y, double start_velocity, double end_velocity){
-  if(free_buffer_spaces() < 1)
+  
+  motion_segment_t* seg = next_free_segment();
+  if(!seg)
     return 0;
-  motion_segment_t* seg = &motion_buffer[(mstate.current_move + mstate.buffer_size) & MOTION_BUFFER_MASK];
- 
+
   seg->start_velocity = start_velocity;
   seg->end_velocity = end_velocity;
   seg->coords[0] = x;
@@ -58,6 +70,20 @@ uint32_t add_move_to_buffer(double x, double y, double start_velocity, double en
   mstate.buffer_size += 1;
   return 1;
 }
+// Grab a segment, set its NaN-flag to mark it as an event, set the event type to 0, and return it.
+// Doesn't increment buffer size - caller must do that after fully initializing the segment.
+special_segment_t* add_event_to_buffer(void){
+  special_segment_t* seg = (special_segment_t*) next_free_segment();
+  if(!seg)
+    return NULL;
+
+  seg->event_flags = 0;
+  seg->tag_bytes = 0xFFFF;
+  
+  return seg;
+}
+
+
 
 void compute_next_step(void){
   double dt;
@@ -80,6 +106,9 @@ void compute_next_step(void){
   mstate.delay = ticks < MIN_STEP_TICKS ? MIN_STEP_TICKS : ticks;
 }
 
+// Returns 0 if we either failed to find a move or there's nothing left to do in the new move
+// Returns 1 if there's something left to do - either steps or a delay. Sets all the relevant fields
+// in the motion state.
 uint32_t initialize_next_seg(uint32_t first){
   motion_segment_t* move;
   double dt;
@@ -89,15 +118,24 @@ uint32_t initialize_next_seg(uint32_t first){
     mstate.current_move = (mstate.current_move + 1) & MOTION_BUFFER_MASK;
     mstate.buffer_size -= 1;
   }
-  // If, after this, there aren't any more moves, null out a bunch of fields in the
-  // current state and fail.
+  // If, after this, there aren't any more moves, null out the current move,
+  // and note that we have 
   if(mstate.buffer_size == 0){
     mstate.move = NULL;
     return 0;
-  }else{
-    move = &motion_buffer[mstate.current_move];
-    mstate.move = move;
   }
+
+  move = &motion_buffer[mstate.current_move];
+  mstate.move = move;
+
+  // Check if the move is actually a special event in disguise! Tricky!
+  if(isnan(move->start_velocity)){
+    mstate.is_event = 1;
+    return 1;
+  }
+
+  mstate.is_event = 0;
+  
   // Initialize the dda, from the end point of the last move, and the end of the new one, giving us
   // our new direction mask
   mstate.dir_bitmask = initialize_dda(mstate.end, move->coords);
@@ -136,15 +174,34 @@ void stepper_isr(void){
   PIT_TFLG1 = TIF;
 
   if(mstate.move != NULL){
-    
-    // Output the next pulse, trigger the pulse reset ISR, and set the timer for the next round
-    if(mstate.step_bitmask){
+    if(mstate.is_event){
+      uint32_t delay = execute_event((special_segment_t*) mstate.move);
+      if(delay){ // We need to keep waiting for a bit
+	PIT_LDVAL1 = TICKS_PER_US * delay;
+	PIT_TCTRL1 = TIE | TEN;
+	return;
+      }else{
+	// Ok, we're now done with that event! Try to grab a new segment...
+	initialize_next_seg(0);
+	if(mstate.move == NULL)
+	  return;
+	// If it's not a move, output the new direction bitmasks
+	if(!mstate.is_event)
+	  DIR_REG = (DIR_REG & ~DIR_BITMASK) | mstate.dir_bitmask;
+	// And set up a new timer, either to execute the event, or wait a bit and take the first
+	// step of the move...
+	PIT_LDVAL1 = TICKS_PER_US;
+	PIT_TCTRL1 = TIE | TEN;
+	return;
+      }
+    }else if(mstate.step_bitmask){
+      // Output the next pulse, trigger the pulse reset ISR, and set the timer for the next round
       STEP_SET = mstate.step_bitmask; // Output the next pulse
       PIT_TCTRL2 = TIE | TEN; // Trigger the reset timer
       PIT_LDVAL1 = mstate.delay; // Update the delay
       PIT_TCTRL1 = TIE | TEN; // Trigger the next pulse
     }
-      
+    
     compute_next_step(); // Actually compute the step bits and delay for the next pulse
     if(mstate.step_bitmask == 0){ // If there were no steps left in the move, go on to the next one
       initialize_next_seg(0);
@@ -153,7 +210,7 @@ void stepper_isr(void){
 }
   
 void start_motion(void){
-  // Grab a chunk, or nope out if we don't have any
+  // Grab a chunk, or nope out if we don't have any 
   if(!initialize_next_seg(1))
     return;
   // Output the direction bits and wait a bit (?)

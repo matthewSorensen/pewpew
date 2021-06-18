@@ -2,6 +2,7 @@
 #define motion_buffer_h
 #include <stdint.h>
 #include "pin_maps.h"
+#include "special_events.h"
 
 typedef struct motion_segment_t {
   double start_velocity;
@@ -9,17 +10,18 @@ typedef struct motion_segment_t {
   double coords[NUM_AXIS];
 } motion_segment_t;
 
+
 typedef struct motion_state_t {
   // Track the state of the motion ring buffer
   uint32_t current_move;
   uint32_t buffer_size;
   motion_segment_t* move;
   // State of the current move:
-  double velocity; // What's the velocity at the end of the last step?
+  uint32_t is_event;   // Is the current move actually just an event?
+  double velocity;     // What's the velocity at the end of the last step?
   double acceleration; // Acceleration over this segment?
-
-  double end[NUM_AXIS];
-  
+  double end[NUM_AXIS];// What's the destination of this move?
+ 
   uint32_t step_bitmask; // What bits did we just set in the last step?
   uint32_t dir_bitmask;  // What's the current state of the direction bits?
   uint32_t delay; // How long should we delay?
@@ -35,6 +37,7 @@ extern volatile motion_state_t mstate;
 void initialize_motion_state(void);
 uint32_t free_buffer_spaces(void);
 uint32_t add_move_to_buffer(double x, double y, double start_velocity, double end_velocity);
+special_segment_t* add_event_to_buffer(void);
 void start_motion(void);
 void stepper_isr(void);
 

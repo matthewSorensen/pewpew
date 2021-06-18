@@ -10,6 +10,9 @@
 #define Y_STEP 17
 #define Y_DIR  18
 
+#define LASER 13
+
+
 #define STEP_SET   PIN_PORTSET(X_STEP)
 #define STEP_CLEAR PIN_PORTCLEAR(X_STEP)
 

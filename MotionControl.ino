@@ -2,7 +2,15 @@
 #include "motion_buffer.h"
 #include "pin_maps.h"
 #include "dda.h"
+#include "special_events.h"
 
+// Things to implement:
+// * planner that can deal with full s-curve motion.
+// * s-curve motion (+ refactor those calculations to be testable like the dda)
+// homing?
+// track internal state more
+// deal with really short segments - right now, if we break a move into sub-step
+// segments, we'll still get correct step counts, but it'll run at maximum speed.
 
 void add_move_blocking(double x, double y, double v0, double v1){
   while(free_buffer_spaces()==0){
@@ -54,11 +62,9 @@ int main(void){
   pinMode(Y_STEP, OUTPUT);
   pinMode(X_DIR, OUTPUT);
   pinMode(Y_DIR, OUTPUT);
+  pinMode(LASER, OUTPUT);
 
   initialize_motion_state();
-
-  double t = 0.003;
-  uint32_t d = 1000;
 
   while(1){
 
@@ -69,12 +75,20 @@ int main(void){
     
 
     for(int i = 0; i < 15; i ++){
-    
+
+      special_segment_t* seg = add_event_to_buffer();
+      seg->event_flags = FIRE_LASER;
+      mstate.buffer_size += 1;
+      
       add_segment(prev, 2 * cos(i * 2 * 3.14156 / 15), 2 * sin(i * 2 * 3.14156 / 15), 4.0, 32.0);
+
+      seg = add_event_to_buffer();
+      mstate.buffer_size += 1;
+      
       add_segment(prev, 0.0, 0.0, 2.0, 32.0);
     }
 
-    for(int i = 0; i < mstate.buffer_size; i ++){
+    for(uint32_t i = 0; i < mstate.buffer_size; i ++){
       Serial.print(motion_buffer[i].coords[0], 5);
       Serial.print(' ');
       Serial.print(motion_buffer[i].coords[1], 5);
