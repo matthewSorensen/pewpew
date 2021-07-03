@@ -3,6 +3,7 @@
 #include "pin_maps.h"
 #include "dda.h"
 #include "special_events.h"
+#include "homing.h"
 
 // Things to implement:
 // * planner that can deal with full s-curve motion.
@@ -58,17 +59,30 @@ int main(void){
 
   Serial.begin(9600);
   
-  pinMode(X_STEP, OUTPUT);
-  pinMode(Y_STEP, OUTPUT);
-  pinMode(X_DIR, OUTPUT);
-  pinMode(Y_DIR, OUTPUT);
-  pinMode(LASER, OUTPUT);
-
+  initialize_gpio();
   initialize_motion_state();
 
   while(1){
 
     
+    Serial.println("Homing");
+    start_homing(1 + 2, HOMING_APPROACH, 0.25);
+    while(homing_state.unhomed_axes != 0){
+      Serial.println(homing_state.unhomed_axes);
+      delay(500);
+    }
+
+    Serial.println("Backing off");
+    start_homing(1 + 2, HOMING_BACKOFF, 0.25);
+    while(homing_state.unhomed_axes != 0){
+      Serial.println(homing_state.unhomed_axes);
+      delay(500);
+    }
+
+    
+    while(1);
+    
+    /*
     double prev[2];
     prev[0] = 0.0;
     prev[1] = 0.0;
@@ -117,7 +131,7 @@ int main(void){
     Serial.print("Ending motion with moves:");
     Serial.println(mstate.buffer_size);
 
-    delay(5000);
+    delay(5000); */
     
   }
 }
