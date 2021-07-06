@@ -56,34 +56,6 @@ motion_segment_t* next_free_segment(void){
   return  &motion_buffer[(mstate.current_move + mstate.buffer_size) & MOTION_BUFFER_MASK];
 }
 
-uint32_t add_move_to_buffer(double x, double y, double start_velocity, double end_velocity){
-  
-  motion_segment_t* seg = next_free_segment();
-  if(!seg)
-    return 0;
-
-  seg->start_velocity = start_velocity;
-  seg->end_velocity = end_velocity;
-  seg->coords[0] = x;
-  seg->coords[1] = y;
-  
-  mstate.buffer_size += 1;
-  return 1;
-}
-// Grab a segment, set its NaN-flag to mark it as an event, set the event type to 0, and return it.
-// Doesn't increment buffer size - caller must do that after fully initializing the segment.
-special_segment_t* add_event_to_buffer(void){
-  special_segment_t* seg = (special_segment_t*) next_free_segment();
-  if(!seg)
-    return NULL;
-
-  seg->event_flags = 0;
-  seg->tag_bytes = 0xFFFF;
-  
-  return seg;
-}
-
-
 
 void compute_next_step(void){
   double dt;

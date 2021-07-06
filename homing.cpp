@@ -73,7 +73,19 @@ void homing_isr(void){
   }
 }
 
-void start_homing(uint32_t axes, homing_phase_t direction, double speed){
+typedef struct homing_message_t {
+  uint32_t axes;
+  uint32_t direction;
+  double speed;
+} homing_message_t;
+
+void start_homing(void* message){
+  homing_message_t* ptr = (homing_message_t*) message;
+  
+  uint32_t axes = ptr->axes;
+  homing_phase_t direction = ptr->direction;
+  double speed = ptr->speed;
+
   uint32_t step_delay = 150;
   homing_state.unhomed_axes = 0;
   if(direction == HOMING_DONE) return; // We're done!

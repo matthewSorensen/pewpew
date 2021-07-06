@@ -5,8 +5,10 @@
 #include "special_events.h"
 
 typedef struct motion_segment_t {
+  // Both of these are in step counts per microsecond
   double start_velocity;
   double end_velocity;
+  // These are all in raw step counts
   double coords[NUM_AXIS];
 } motion_segment_t;
 
@@ -36,8 +38,7 @@ extern volatile motion_state_t mstate;
 
 void initialize_motion_state(void);
 uint32_t free_buffer_spaces(void);
-uint32_t add_move_to_buffer(double x, double y, double start_velocity, double end_velocity);
-special_segment_t* add_event_to_buffer(void);
+motion_segment_t* next_free_segment(void);
 void start_motion(void);
 void stepper_isr(void);
 

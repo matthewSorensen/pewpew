@@ -1,137 +1,180 @@
 #include "core_pins.h"
+#include "protocol_constants.h"
 #include "motion_buffer.h"
 #include "pin_maps.h"
 #include "dda.h"
 #include "special_events.h"
 #include "homing.h"
 
-// Things to implement:
-// * planner that can deal with full s-curve motion.
-// * s-curve motion (+ refactor those calculations to be testable like the dda)
-// homing?
-// track internal state more
-// deal with really short segments - right now, if we break a move into sub-step
-// segments, we'll still get correct step counts, but it'll run at maximum speed.
+typedef struct comm_state_t {
+  // Is the serial port currently active?
+  uint32_t serial_active;
+  // Have we shook hands with the device, to the point that we can sent messages beyond DESCRIBE?
+  uint32_t have_handshook;
+  // How many more segments/events should we wait for before we send a buffer count size?
+  uint32_t suppress_buffer_count;
+  // What are we currently doing?
+  status_flag_t status;
+} comm_state_t;
 
-void add_move_blocking(double x, double y, double v0, double v1){
-  while(free_buffer_spaces()==0){
-    delayMicroseconds(10);
-  }
-  add_move_to_buffer(x, y, v0, v1);
+typedef struct status_message_t {
+  uint32_t request_id; 
+  uint32_t flag;
+  uint32_t buffer_slots;
+  double pos[NUM_AXIS];
+} status_message_t;
+
+static comm_state_t cs;
+
+void build_status_message(status_message_t* sm){
+  // Yeah, we don't overwrite the request id, because it's the same as the incoming
+  // ask request
+  sm->flag = cs.status;
+  sm->buffer_slots = free_buffer_spaces();
+  sm->pos[0] = 1.0;
+  sm->pos[1] = 2.0;
 }
 
-// Good max velocity = 2 mm/s
-// Good a = 32 mm/s^2
-void add_segment(double* prev, double x, double y, double v, double a){
-  double dx, dy, l, acc_length;
-  double sx, sy, sl;
-  double spx, spy;
-  spx = steps_per_mm[0]  * prev[0];
-  spy = steps_per_mm[1]  * prev[1];
-    
-  dx = x - prev[0];
-  dy = y - prev[1];
-  sx = steps_per_mm[0] * dx;
-  sy = steps_per_mm[1] * dy;
-  l = sqrt(dx * dx + dy * dy);
-  sl = sqrt(sx * sx + sy * sy);  
-  // How long will it take to accelerate/decelerate?
-  acc_length = v*v / (2 * a);
-  if(2 * acc_length < l){
-    double sv = (v * sl / l) / 1000.0;
-    sv *= 0.001;
-    double scale = acc_length / l;
+void error_and_die(const char* message){
+  Serial.write(MESSAGE_ERROR);
+  Serial.write(message);
+  Serial.write('\n');
+  while(1) delay(1000);
+}
 
-    add_move_blocking(spx + scale * sx, spy + scale * sy,0,sv);
-    add_move_blocking(spx + (1 - scale) * sx,spy + (1 - scale) * sy ,sv,sv);
-    add_move_blocking(spx + sx, spy + sy,sv,0);
-  }else{
-    double sv = sqrt(a * l) * sl / (1000000 * l);
-    add_move_blocking(spx + 0.5 * sx, spy + 0.5 * sy, 0, sv);
-    add_move_blocking(spx + sx, spy + sy,sv,0);   
+void send_message(message_type_t message, uint8_t* body){
+  Serial.write((char) message);
+  Serial.write(body, message_sizes[message - 1]);
+}
+
+void handle_message(message_type_t mess){
+
+  switch(mess){
+
+  case MESSAGE_INQUIRE:{
+    uint32_t* params = (uint32_t*) message_buffer;
+    params[0] = 1; // Protocol version
+    params[1] = NUM_AXIS;
+    params[2] = 1337; // Device number? IDK.
+    send_message(MESSAGE_DESCRIBE, message_buffer);
+    cs.have_handshook = 1;
+  } break;
+
+  case MESSAGE_ASK:
+    build_status_message((status_message_t*) message_buffer);
+    send_message(MESSAGE_STATUS, message_buffer);
+    break;
+
+  case MESSAGE_EXPECT:
+    cs.suppress_buffer_count += *((uint32_t*) message_buffer);
+    break;
+
+  case MESSAGE_EVENT:
+  case MESSAGE_SEGMENT:{
+    motion_segment_t* dest = next_free_segment();
+    if(!dest){
+      error_and_die("Motion buffer overflow");
+    }
+    memcpy(dest, message_buffer, sizeof(motion_segment_t));
+    if(cs.suppress_buffer_count < 1){
+      *((uint32_t*) message_buffer) = free_buffer_spaces();
+      send_message(MESSAGE_BUFFER, message_buffer);
+    }else{
+      cs.suppress_buffer_count--;
+    }
+    mstate.buffer_size++;
+  } break;
+  case MESSAGE_HOME:
+    if(cs.status != STATUS_IDLE)
+      error_and_die("Homing cycle must start from idle state");
+    start_homing(message_buffer);
+    cs.status = STATUS_HOMING;
+    break;
+  case MESSAGE_START:
+    // Start is idempotent
+    if(cs.status != STATUS_IDLE || cs.status == STATUS_BUSY)
+      error_and_die("Cycle must start from idle state");
+    cs.status = STATUS_BUSY;
+    start_motion();
+    break;
+  case MESSAGE_DESCRIBE:
+  case MESSAGE_STATUS:
+  case MESSAGE_BUFFER:
+  case MESSAGE_ERROR:
+  default:
+    error_and_die("Recived message in wrong direction\n");
   }
-  prev[0] = x;
-  prev[1] = y;
 }
 
 
 int main(void){
+  // Message "parser" state
+  uint32_t message_started = 0;
+  uint32_t message_type = 0;
+  uint32_t remaining_chars = 0;
+  uint8_t* dest = message_buffer;
 
-  Serial.begin(9600);
-  
   initialize_gpio();
-  initialize_motion_state();
-
-  while(1){
-
-    
-    Serial.println("Homing");
-    start_homing(1 + 2, HOMING_APPROACH, 0.25);
-    while(homing_state.unhomed_axes != 0){
-      Serial.println(homing_state.unhomed_axes);
-      delay(500);
-    }
-
-    Serial.println("Backing off");
-    start_homing(1 + 2, HOMING_BACKOFF, 0.25);
-    while(homing_state.unhomed_axes != 0){
-      Serial.println(homing_state.unhomed_axes);
-      delay(500);
-    }
-
-    
-    while(1);
-    
-    /*
-    double prev[2];
-    prev[0] = 0.0;
-    prev[1] = 0.0;
-    
-
-    for(int i = 0; i < 15; i ++){
-
-      special_segment_t* seg = add_event_to_buffer();
-      seg->event_flags = FIRE_LASER;
-      mstate.buffer_size += 1;
-      
-      add_segment(prev, 2 * cos(i * 2 * 3.14156 / 15), 2 * sin(i * 2 * 3.14156 / 15), 4.0, 32.0);
-
-      seg = add_event_to_buffer();
-      mstate.buffer_size += 1;
-      
-      add_segment(prev, 0.0, 0.0, 2.0, 32.0);
-    }
-
-    for(uint32_t i = 0; i < mstate.buffer_size; i ++){
-      Serial.print(motion_buffer[i].coords[0], 5);
-      Serial.print(' ');
-      Serial.print(motion_buffer[i].coords[1], 5);
-      Serial.print(' ');
-      Serial.print(motion_buffer[i].start_velocity, 5);
-      Serial.print(' ');
-      Serial.print(motion_buffer[i].end_velocity, 5);
-      Serial.println(' ');
-    }
-
-    
-    Serial.print("Begining motion with moves:");
-    Serial.println(mstate.buffer_size);
-    
-    start_motion();
-
   
-    while(mstate.move){
-      Serial.print(mstate.buffer_size);
-      Serial.print(' ');
-      Serial.print(' ');
-      Serial.println(dda.prev_length, 5);
-      
-      delay(200);
+  // Initialize the communication state
+  cs.serial_active = 0;
+  cs.have_handshook = 0;
+  cs.suppress_buffer_count = 0;
+  cs.status = STATUS_IDLE;
+   
+  while(1){
+    // Track the falling and rising edges of the serial connection    
+    if(!Serial){
+      if(cs.serial_active){
+	// Probably should stop motion here too
+	cs.serial_active = 0;
+      }
+      delay(100);
+      continue;
+    }else if(!cs.serial_active){
+      // Serial connection just turned on!
+      cs.serial_active = 1;
+      cs.have_handshook = 0;
+      cs.suppress_buffer_count = 0;
+      cs.status = STATUS_IDLE;
+      initialize_motion_state();
     }
-    Serial.print("Ending motion with moves:");
-    Serial.println(mstate.buffer_size);
+    // Update the current status
+    switch(cs.status){
+    case STATUS_HOMING:
+      if(homing_state.unhomed_axes == 0)
+	cs.status = STATUS_IDLE;
+      break;
+    case STATUS_BUSY:
+      if(mstate.move == NULL)
+	cs.status = STATUS_IDLE;
+      break;
+    case STATUS_IDLE:
+    default:
+      break;
+    }
+    // Check for serial input
+    if(Serial.available()){
+      uint8_t byte = Serial.read(); 
 
-    delay(5000); */
-    
+      if(message_started){
+	*dest++ = byte;
+	remaining_chars -= 1;
+      }else{
+	// Check that the byte is a valid message type, of course
+	if(byte < 1 || byte > MAX_MESSAGE)
+	  error_and_die("Invalid message header");
+	
+	message_started = 1;
+	message_type = byte;
+	remaining_chars = message_sizes[message_type - 1];
+	dest = message_buffer;
+      }
+      
+      if(remaining_chars == 0){
+	handle_message((message_type_t) message_type);
+	message_started = 0;
+      }
+    }
   }
 }
