@@ -46,13 +46,9 @@
 #define READ_PIN_(pin) (!!(CORE_PIN##pin##_PINREG & CORE_PIN##pin##_BITMASK))
 #define READ_PIN(pin)  READ_PIN_(pin)
 
-
-
 extern const uint32_t axis_to_step[NUM_AXIS];
 extern const uint32_t axis_to_dir[NUM_AXIS];
 extern const uint32_t axis_to_limit[NUM_AXIS];
-
-extern const double steps_per_mm[NUM_AXIS];
 
 #define INVERT_HOME 1
 #define REVERSE_HOME 2
