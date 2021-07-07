@@ -27,8 +27,10 @@ uint32_t initialize_dda(volatile double* start, double* end){
       d = 0 - d;
       dir_mask |= axis_to_dir[i];
       dda.error_acc[i] = -1 * (s - qs);
+      dda.step_sign[i] = -1;
     } else {
       dda.error_acc[i] = s - qs;
+      dda.step_sign[i] = 1;
     }
 
     dda.increment_vector[i] = d;
@@ -58,7 +60,7 @@ uint32_t initialize_dda(volatile double* start, double* end){
 }
 
 
-uint32_t compute_step(double* length_dest){
+uint32_t compute_step(double* length_dest, volatile int32_t* step_count_dest){
   uint32_t steps = 0;
   double length = 0;
   uint32_t i = 0;
@@ -79,6 +81,7 @@ uint32_t compute_step(double* length_dest){
 	  steps |= axis_to_step[i];
 	  count -= 1;
 	  dda.step_count[i] = count;
+	  step_count_dest[i] += dda.step_sign[i];
 	}
       }
 
@@ -106,8 +109,9 @@ uint32_t compute_step(double* length_dest){
       error -= 1.0;
       if(count > 0){
 	steps |= axis_to_step[i];
-	  count -= 1;
-	  dda.step_count[i] = count;
+	count -= 1;
+	dda.step_count[i] = count;
+	step_count_dest[i] += dda.step_sign[i];
       }
     }
     dda.error_acc[i] = error;

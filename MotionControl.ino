@@ -24,7 +24,7 @@ typedef struct status_message_t {
   uint32_t request_id; 
   uint32_t flag;
   uint32_t buffer_slots;
-  double pos[NUM_AXIS];
+  int32_t pos[NUM_AXIS];
 } status_message_t;
 
 static comm_state_t cs;
@@ -34,8 +34,11 @@ void build_status_message(status_message_t* sm){
   // ask request
   sm->flag = cs.status;
   sm->buffer_slots = free_buffer_spaces();
-  sm->pos[0] = 1.0;
-  sm->pos[1] = 2.0;
+
+  for(int i = 0; i < NUM_AXIS; i++){
+    sm->pos[i] = mstate.position[i];
+  }
+  
 }
 
 void error_and_die(const char* message){

@@ -38,6 +38,7 @@ void initialize_motion_state(void){
   
   for(int i = 0; i < NUM_AXIS; i++){
     mstate.end[i] = 0.0;
+    mstate.position[i] = 0;
   }
   manual_trigger = 0;
 }
@@ -61,7 +62,12 @@ void compute_next_step(void){
   double dt;
   double v;
   double length;
-  uint32_t step_mask = compute_step(&length);
+
+  for(int i = 0; i < NUM_AXIS; i++){
+    mstate.step_update[i] = 0;
+  }
+  
+  uint32_t step_mask = compute_step(&length,mstate.step_update);
   uint32_t ticks;
   // If there are no more steps in this segment, signal that and fail
   mstate.step_bitmask = step_mask;
@@ -172,6 +178,11 @@ void stepper_isr(void){
       PIT_TCTRL2 = TIE | TEN; // Trigger the reset timer
       PIT_LDVAL1 = mstate.delay; // Update the delay
       PIT_TCTRL1 = TIE | TEN; // Trigger the next pulse
+      // Update the step counter
+      for(int i = 0; i < NUM_AXIS; i++){
+	mstate.position[i] += mstate.step_update[i];
+      }
+      
     }
     
     compute_next_step(); // Actually compute the step bits and delay for the next pulse

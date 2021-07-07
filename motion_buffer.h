@@ -14,6 +14,8 @@ typedef struct motion_segment_t {
 
 
 typedef struct motion_state_t {
+  // Where are we?
+  int32_t position[NUM_AXIS];
   // Track the state of the motion ring buffer
   uint32_t current_move;
   uint32_t buffer_size;
@@ -25,6 +27,7 @@ typedef struct motion_state_t {
   double end[NUM_AXIS];// What's the destination of this move?
  
   uint32_t step_bitmask; // What bits did we just set in the last step?
+  int32_t step_update[NUM_AXIS];
   uint32_t dir_bitmask;  // What's the current state of the direction bits?
   uint32_t delay; // How long should we delay?
 } motion_state_t;
