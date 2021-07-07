@@ -15,6 +15,9 @@ typedef struct comm_state_t {
   uint32_t suppress_buffer_count;
   // What are we currently doing?
   status_flag_t status;
+
+  uint32_t expect_request_id;
+  
 } comm_state_t;
 
 typedef struct status_message_t {
@@ -65,9 +68,11 @@ void handle_message(message_type_t mess){
     send_message(MESSAGE_STATUS, message_buffer);
     break;
 
-  case MESSAGE_EXPECT:
-    cs.suppress_buffer_count += *((uint32_t*) message_buffer);
-    break;
+  case MESSAGE_EXPECT:{
+    uint32_t* message = (uint32_t*) message_buffer;
+    cs.expect_request_id = message[0];
+    cs.suppress_buffer_count += message[1];
+  }break;
 
   case MESSAGE_EVENT:
   case MESSAGE_SEGMENT:{
@@ -76,13 +81,17 @@ void handle_message(message_type_t mess){
       error_and_die("Motion buffer overflow");
     }
     memcpy(dest, message_buffer, sizeof(motion_segment_t));
-    if(cs.suppress_buffer_count < 1){
-      *((uint32_t*) message_buffer) = free_buffer_spaces();
-      send_message(MESSAGE_BUFFER, message_buffer);
-    }else{
-      cs.suppress_buffer_count--;
-    }
     mstate.buffer_size++;
+    
+    if(cs.suppress_buffer_count <= 1){
+      uint32_t* message = (uint32_t*) message_buffer;
+      message[0] = cs.expect_request_id;
+      message[1] = free_buffer_spaces();
+      send_message(MESSAGE_BUFFER, message_buffer);
+      cs.expect_request_id = 0;
+    }
+    if(cs.suppress_buffer_count > 0)
+      cs.suppress_buffer_count--;
   } break;
   case MESSAGE_HOME:
     if(cs.status != STATUS_IDLE)
@@ -121,6 +130,7 @@ int main(void){
   cs.have_handshook = 0;
   cs.suppress_buffer_count = 0;
   cs.status = STATUS_IDLE;
+  cs.expect_request_id = 0;
    
   while(1){
     // Track the falling and rising edges of the serial connection    
@@ -137,6 +147,7 @@ int main(void){
       cs.have_handshook = 0;
       cs.suppress_buffer_count = 0;
       cs.status = STATUS_IDLE;
+      cs.expect_request_id = 0;
       initialize_motion_state();
     }
     // Update the current status
