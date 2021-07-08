@@ -1,5 +1,6 @@
 #include "homing.h"
 #include "pin_maps.h"
+#include "motion_buffer.h"
 #include "core_pins.h"
 
 #define TIE 2
@@ -60,6 +61,7 @@ void homing_isr(void){
     if(switch_state){
       homing_state.current_phase[i] = HOMING_DONE;
       homing_state.unhomed_axes -= 1;
+      mstate.position[i] = home_positions[i];
     }else{ // Otherwise keep truckin'
       steps |= axis_to_step[i];
     } 

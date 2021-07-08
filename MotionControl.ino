@@ -51,6 +51,7 @@ void error_and_die(const char* message){
 void send_message(message_type_t message, uint8_t* body){
   Serial.write((char) message);
   Serial.write(body, message_sizes[message - 1]);
+  Serial.send_now();
 }
 
 void handle_message(message_type_t mess){

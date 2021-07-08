@@ -49,6 +49,8 @@
 extern const uint32_t axis_to_step[NUM_AXIS];
 extern const uint32_t axis_to_dir[NUM_AXIS];
 extern const uint32_t axis_to_limit[NUM_AXIS];
+extern const uint32_t home_positions[NUM_AXIS];
+
 
 #define INVERT_HOME 1
 #define REVERSE_HOME 2
