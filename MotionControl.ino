@@ -61,8 +61,9 @@ void handle_message(message_type_t mess){
   case MESSAGE_INQUIRE:{
     uint32_t* params = (uint32_t*) message_buffer;
     params[0] = 1; // Protocol version
-    params[1] = NUM_AXIS;
-    params[2] = 1337; // Device number? IDK.
+    params[1] = NUM_AXIS; // The all-important number of axes
+    params[2] = 1337; // Device number? IDK. I like inventing random undescribed fields in new protocols.
+    params[3] = MOTION_BUFFER_SIZE; // Also important for the sender to know, but not critical.
     send_message(MESSAGE_DESCRIBE, message_buffer);
     cs.have_handshook = 1;
   } break;
