@@ -24,6 +24,7 @@ typedef struct status_message_t {
   uint32_t request_id; 
   uint32_t flag;
   uint32_t buffer_slots;
+  uint32_t move_id;
   int32_t pos[NUM_AXIS];
 } status_message_t;
 
@@ -35,6 +36,12 @@ void build_status_message(status_message_t* sm){
   sm->flag = cs.status;
   sm->buffer_slots = free_buffer_spaces();
 
+  if(cs.status == STATUS_BUSY){
+    sm->move_id = mstate.move_id;
+  }else{
+    sm->move_id = 0;
+  }
+  
   for(int i = 0; i < NUM_AXIS; i++){
     sm->pos[i] = mstate.position[i];
   }
@@ -79,7 +86,6 @@ void handle_message(message_type_t mess){
     cs.suppress_buffer_count += message[1];
   }break;
 
-  case MESSAGE_EVENT:
   case MESSAGE_SEGMENT:{
     motion_segment_t* dest = next_free_segment();
     if(!dest){

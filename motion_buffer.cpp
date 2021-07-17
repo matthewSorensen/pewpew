@@ -34,7 +34,8 @@ void initialize_motion_state(void){
   mstate.current_move = 0;
   mstate.buffer_size = 0;  
   mstate.move = NULL;
-  mstate.is_event = 0;
+  mstate.move_id = 0;
+  mstate.move_flag = 0;
   
   for(int i = 0; i < NUM_AXIS; i++){
     mstate.end[i] = 0.0;
@@ -105,14 +106,11 @@ uint32_t initialize_next_seg(uint32_t first){
 
   move = &motion_buffer[mstate.current_move];
   mstate.move = move;
-
-  // Check if the move is actually a special event in disguise! Tricky!
-  if(isnan(move->start_velocity)){
-    mstate.is_event = 1;
+  mstate.move_id = move->move_id;
+  mstate.move_flag = move->move_flag;
+  // If it's a special event, don't initialize the dda...
+  if(mstate.move_flag)
     return 1;
-  }
-
-  mstate.is_event = 0;
   
   // Initialize the dda, from the end point of the last move, and the end of the new one, giving us
   // our new direction mask
@@ -152,8 +150,8 @@ void stepper_isr(void){
   PIT_TFLG1 = TIF;
 
   if(mstate.move != NULL){
-    if(mstate.is_event){
-      uint32_t delay = execute_event((special_segment_t*) mstate.move);
+    if(mstate.move_flag){
+      uint32_t delay = execute_event(mstate.move);
       if(delay){ // We need to keep waiting for a bit
 	PIT_LDVAL1 = TICKS_PER_US * delay;
 	PIT_TCTRL1 = TIE | TEN;
@@ -164,7 +162,7 @@ void stepper_isr(void){
 	if(mstate.move == NULL)
 	  return;
 	// If it's not a move, output the new direction bitmasks
-	if(!mstate.is_event)
+	if(!mstate.move_flag)
 	  DIR_REG = (DIR_REG & ~DIR_BITMASK) | mstate.dir_bitmask;
 	// And set up a new timer, either to execute the event, or wait a bit and take the first
 	// step of the move...

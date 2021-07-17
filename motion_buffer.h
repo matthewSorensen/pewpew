@@ -2,9 +2,10 @@
 #define motion_buffer_h
 #include <stdint.h>
 #include "pin_maps.h"
-#include "special_events.h"
 
 typedef struct motion_segment_t {
+  uint32_t move_id; // Whatever the sender tells us - just an opaque ID with no expected ordering.
+  uint32_t move_flag;   // If this is non-zero, it's a special event
   // Both of these are in step counts per microsecond
   double start_velocity;
   double end_velocity;
@@ -21,7 +22,8 @@ typedef struct motion_state_t {
   uint32_t buffer_size;
   motion_segment_t* move;
   // State of the current move:
-  uint32_t is_event;   // Is the current move actually just an event?
+  uint32_t move_id;    // What's the current move id/number, directly taken from the move
+  uint32_t move_flag;  // Move flags from the current move - if non-zero, it's actually a special event
   double velocity;     // What's the velocity at the end of the last step?
   double acceleration; // Acceleration over this segment?
   double end[NUM_AXIS];// What's the destination of this move?
