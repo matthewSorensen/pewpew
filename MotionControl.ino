@@ -16,6 +16,11 @@ typedef struct comm_state_t {
   // What are we currently doing?
   status_flag_t status;
 
+  // Have we gotten a 'done' message, indicating that finishing the
+  // buffer isn't an underflow state? Resets every time a move is put into the
+  // motion buffer
+  uint32_t buffer_done;
+  
   uint32_t expect_request_id;
   
 } comm_state_t;
@@ -86,6 +91,11 @@ void handle_message(message_type_t mess){
     cs.suppress_buffer_count += message[1];
   }break;
 
+  case MESSAGE_DONE:
+    cs.buffer_done = 1;
+    break;
+
+    
   case MESSAGE_SEGMENT:{
     motion_segment_t* dest = next_free_segment();
     if(!dest){
@@ -103,6 +113,7 @@ void handle_message(message_type_t mess){
     }
     if(cs.suppress_buffer_count > 0)
       cs.suppress_buffer_count--;
+    cs.buffer_done = 0;
   } break;
   case MESSAGE_HOME:
     if(cs.status != STATUS_IDLE)
@@ -142,6 +153,7 @@ int main(void){
   cs.suppress_buffer_count = 0;
   cs.status = STATUS_IDLE;
   cs.expect_request_id = 0;
+  cs.buffer_done = 1;
    
   while(1){
     // Track the falling and rising edges of the serial connection    
@@ -159,6 +171,7 @@ int main(void){
       cs.suppress_buffer_count = 0;
       cs.status = STATUS_IDLE;
       cs.expect_request_id = 0;
+      cs.buffer_done = 1;
       initialize_motion_state();
     }
     // Update the current status
@@ -168,8 +181,13 @@ int main(void){
 	cs.status = STATUS_IDLE;
       break;
     case STATUS_BUSY:
-      if(mstate.move == NULL)
-	cs.status = STATUS_IDLE;
+      if(mstate.move == NULL){
+	if(cs.buffer_done){
+	  cs.status = STATUS_IDLE;
+	}else{
+	  cs.status = STATUS_BUFFER_UNDERFLOW;
+	}
+      }
       break;
     case STATUS_IDLE:
     default:
