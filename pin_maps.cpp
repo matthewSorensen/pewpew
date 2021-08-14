@@ -15,7 +15,9 @@ void initialize_gpio(void){
   for(int i = 0; i < NUM_AXIS; i++){
     pinMode(motor_pins[i].step_pin_number, OUTPUT);
     pinMode(motor_pins[i].dir_pin_number, OUTPUT);
-    pinMode(home_pins[i].limit_pin_number, INPUT_PULLDOWN);
+    if(!(home_pins[i].flags & HOME_NONE)){
+      pinMode(home_pins[i].limit_pin_number, INPUT_PULLDOWN);
+    }
   }
  
 }
