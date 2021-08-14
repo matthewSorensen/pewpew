@@ -32,18 +32,22 @@ typedef struct motor_pins_t {
 
 extern const motor_pins_t motor_pins[NUM_AXIS];
 
-
-#define INVERT_HOME 1
-#define REVERSE_HOME 2
+typedef enum homing_flag_t {
+  HOME_NONE = 1,
+  HOME_INVERT = 2,
+  HOME_REVERSE = 4
+} homing_flag_t;
 
 typedef struct homing_pins_t {
   uint32_t limit_pin_number;
   uint32_t limit_pin_bitmask;
   
   uint32_t home_position;
-  uint32_t flags;
+  homing_flag_t flags;
 } homing_pins_t;
 
+#define NO_HOME {.limit_pin_number = 0, .limit_pin_bitmask = 0, .home_position = 0, .flags = HOME_NONE}
+#define HOMING_PIN(pin,home_pos,flag) {.limit_pin_number = pin, .limit_pin_bitmask = PIN_BITMASK(pin), .home_position = home_pos, .flags = flag}
 
 extern const homing_pins_t home_pins[NUM_AXIS];
 

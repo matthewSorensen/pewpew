@@ -21,7 +21,7 @@ void compute_and_set_direction_bits(void){
     if(phase == HOMING_BACKOFF){
       bit = !bit;
     }
-    if(home_pins[i].flags & REVERSE_HOME){
+    if(home_pins[i].flags & HOME_REVERSE){
       bit = !bit;
     }
     if(bit){
@@ -56,7 +56,7 @@ void homing_isr(void){
     homing_pins_t axis = home_pins[i];
     if(phase == HOMING_DONE) continue;
 
-    uint32_t switch_state = !!(LIMIT_REG & axis.limit_pin_bitmask) ^ !!(axis.flags & INVERT_HOME) ^ (phase == HOMING_BACKOFF);
+    uint32_t switch_state = !!(LIMIT_REG & axis.limit_pin_bitmask) ^ !!(axis.flags & HOME_INVERT) ^ (phase == HOMING_BACKOFF);
 
     if(switch_state){
       homing_state.current_phase[i] = HOMING_DONE;
@@ -89,10 +89,11 @@ void start_homing(void* message){
   
   for(int i = 0; i < NUM_AXIS; i++){
     
-    if(!(axes & (1<<i))){
+    if(!(axes & (1<<i)) || (home_pins[i].flags & HOME_NONE)){
       homing_state.current_phase[i] = HOMING_DONE;
       continue;
     }
+    
     homing_state.current_phase[i] = HOMING_APPROACH;
     homing_state.unhomed_axes += 1;
   }

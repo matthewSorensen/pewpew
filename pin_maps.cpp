@@ -6,10 +6,8 @@ const motor_pins_t motor_pins[NUM_AXIS] = {MOTOR_PINS(19, 20),
 					   MOTOR_PINS(17, 18)};
 
 
-const homing_pins_t home_pins[NUM_AXIS] = {
-  {.limit_pin_number = 0, .limit_pin_bitmask = PIN_BITMASK(0), .home_position = 0 , .flags = REVERSE_HOME},
-  {.limit_pin_number = 1, .limit_pin_bitmask = PIN_BITMASK(1), .home_position = 0 , .flags = REVERSE_HOME}};
-
+const homing_pins_t home_pins[NUM_AXIS] = {HOMING_PIN(0,0,HOME_REVERSE),
+					   HOMING_PIN(1,0,HOME_REVERSE)};
 
 
 void initialize_gpio(void){
