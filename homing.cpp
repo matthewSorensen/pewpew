@@ -21,11 +21,11 @@ void compute_and_set_direction_bits(void){
     if(phase == HOMING_BACKOFF){
       bit = !bit;
     }
-    if(homing_flags[i] & REVERSE_HOME){
+    if(home_pins[i].flags & REVERSE_HOME){
       bit = !bit;
     }
     if(bit){
-      dir_bits |= axis_to_dir[i];
+      dir_bits |= motor_pins[i].dir_pin_bitmask;
     }
   }
 
@@ -53,17 +53,17 @@ void homing_isr(void){
   uint32_t steps = 0;
   for(int i = 0; i < NUM_AXIS; i++){
     homing_phase_t phase = homing_state.current_phase[i];
-
+    homing_pins_t axis = home_pins[i];
     if(phase == HOMING_DONE) continue;
 
-    uint32_t switch_state = !!(LIMIT_REG & axis_to_limit[i]) ^ !!(homing_flags[i] & INVERT_HOME) ^ (phase == HOMING_BACKOFF);
+    uint32_t switch_state = !!(LIMIT_REG & axis.limit_pin_bitmask) ^ !!(axis.flags & INVERT_HOME) ^ (phase == HOMING_BACKOFF);
 
     if(switch_state){
       homing_state.current_phase[i] = HOMING_DONE;
       homing_state.unhomed_axes -= 1;
-      mstate.position[i] = home_positions[i];
+      mstate.position[i] = axis.home_position;
     }else{ // Otherwise keep truckin'
-      steps |= axis_to_step[i];
+      steps |= motor_pins[i].step_pin_bitmask;
     } 
   }
   // If we have another step pulse (and thus aren't all done), set the pins
@@ -80,7 +80,7 @@ void start_homing(void* message){
   homing_message_t* ptr = (homing_message_t*) message;
   
   uint32_t axes = ptr->axes;
-  homing_phase_t direction = ptr->direction;
+  homing_phase_t direction = (homing_phase_t) ptr->direction;
   double speed = ptr->speed;
   uint32_t step_delay = 150.0 / speed;
   

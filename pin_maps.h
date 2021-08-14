@@ -5,57 +5,47 @@
 
 #define NUM_AXIS 2
 
-#define X_STEP 19
-#define X_DIR  20
-#define Y_STEP 17
-#define Y_DIR  18
-
-#define LASER 13
-
-#define X_LIMIT 0
-#define Y_LIMIT 1
-
-#define STEP_SET   PIN_PORTSET(X_STEP)
-#define STEP_CLEAR PIN_PORTCLEAR(X_STEP)
-
-#define DIR_REG PIN_PORTREG(X_DIR)
-
+// These definitions aren't entirely orthagonal from the
+// pin defs in pin_maps.h, alas...
+#define STEP_SET   GPIO6_DR_SET
+#define STEP_CLEAR GPIO6_DR_CLEAR
+#define DIR_REG GPIO6_DR
 #define LIMIT_REG CORE_PIN0_PINREG
-
-#define DIR_BITMASK (PIN_BITMASK(X_DIR) | PIN_BITMASK(Y_DIR))
-#define STEP_BITMASK (PIN_BITMASK(X_STEP) | PIN_BITMASK(Y_STEP))
+// Same here - changing NUM_AXIS requires updating this too...
+#define DIR_BITMASK (motor_pins[0].dir_pin_bitmask | motor_pins[1].dir_pin_bitmask)
+#define STEP_BITMASK  (motor_pins[0].step_pin_bitmask | motor_pins[1].step_pin_bitmask)
 
 #define PIN_BITMASK_(pin) (CORE_PIN##pin##_BITMASK)
 #define PIN_BITMASK(pin) PIN_BITMASK_(pin)
 
-#define PIN_PORTCLEAR_(pin) (CORE_PIN##pin##_PORTCLEAR)
-#define PIN_PORTCLEAR(pin)  PIN_PORTCLEAR_(pin)
 
-#define PIN_PORTSET_(pin) (CORE_PIN##pin##_PORTSET)
-#define PIN_PORTSET(pin)  PIN_PORTSET_(pin)
+typedef struct motor_pins_t {
+  uint32_t step_pin_number;
+  uint32_t step_pin_bitmask;
+  
+  uint32_t dir_pin_number;
+  uint32_t dir_pin_bitmask;
+} motor_pins_t;
 
-#define PIN_PORTREG_(pin) (CORE_PIN##pin##_PORTREG)
-#define PIN_PORTREG(pin)  PIN_PORTREG_(pin)
 
-#define CLEAR_PIN_(pin) {CORE_PIN##pin##_PORTCLEAR = CORE_PIN##pin##_BITMASK;}
-#define CLEAR_PIN(pin)  CLEAR_PIN_(pin)
+#define MOTOR_PINS(step, dir) {.step_pin_number = step, .step_pin_bitmask = PIN_BITMASK(step), .dir_pin_number = dir, .dir_pin_bitmask = PIN_BITMASK(dir)}
 
-#define SET_PIN_(pin) {CORE_PIN##pin##_PORTSET = CORE_PIN##pin##_BITMASK;}
-#define SET_PIN(pin)  SET_PIN_(pin)
-
-#define READ_PIN_(pin) (!!(CORE_PIN##pin##_PINREG & CORE_PIN##pin##_BITMASK))
-#define READ_PIN(pin)  READ_PIN_(pin)
-
-extern const uint32_t axis_to_step[NUM_AXIS];
-extern const uint32_t axis_to_dir[NUM_AXIS];
-extern const uint32_t axis_to_limit[NUM_AXIS];
-extern const uint32_t home_positions[NUM_AXIS];
+extern const motor_pins_t motor_pins[NUM_AXIS];
 
 
 #define INVERT_HOME 1
 #define REVERSE_HOME 2
 
-extern const uint32_t homing_flags[NUM_AXIS];
+typedef struct homing_pins_t {
+  uint32_t limit_pin_number;
+  uint32_t limit_pin_bitmask;
+  
+  uint32_t home_position;
+  uint32_t flags;
+} homing_pins_t;
+
+
+extern const homing_pins_t home_pins[NUM_AXIS];
 
 
 void initialize_gpio(void);

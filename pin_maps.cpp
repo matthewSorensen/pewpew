@@ -1,23 +1,23 @@
-#include "pin_maps.h"
 #include "core_pins.h"
+#include "pin_maps.h"
 
 
-const uint32_t axis_to_step[NUM_AXIS] = {PIN_BITMASK(X_STEP), PIN_BITMASK(Y_STEP)};
-const uint32_t axis_to_dir[NUM_AXIS]  = {PIN_BITMASK(X_DIR), PIN_BITMASK(Y_DIR)};
-const uint32_t axis_to_limit[NUM_AXIS]  = {PIN_BITMASK(X_LIMIT), PIN_BITMASK(Y_LIMIT)};
-const uint32_t homing_flags[NUM_AXIS] = {REVERSE_HOME,REVERSE_HOME};
-const uint32_t home_positions[NUM_AXIS] = {0,0};
+const motor_pins_t motor_pins[NUM_AXIS] = {MOTOR_PINS(19, 20),
+					   MOTOR_PINS(17, 18)};
+
+
+const homing_pins_t home_pins[NUM_AXIS] = {
+  {.limit_pin_number = 0, .limit_pin_bitmask = PIN_BITMASK(0), .home_position = 0 , .flags = REVERSE_HOME},
+  {.limit_pin_number = 1, .limit_pin_bitmask = PIN_BITMASK(1), .home_position = 0 , .flags = REVERSE_HOME}};
+
 
 
 void initialize_gpio(void){
 
-  pinMode(X_STEP, OUTPUT);
-  pinMode(Y_STEP, OUTPUT);
-  pinMode(X_DIR, OUTPUT);
-  pinMode(Y_DIR, OUTPUT);
-  pinMode(LASER, OUTPUT);
-
-  pinMode(X_LIMIT, INPUT_PULLDOWN);
-  pinMode(Y_LIMIT, INPUT_PULLDOWN);
+  for(int i = 0; i < NUM_AXIS; i++){
+    pinMode(motor_pins[i].step_pin_number, OUTPUT);
+    pinMode(motor_pins[i].dir_pin_number, OUTPUT);
+    pinMode(home_pins[i].limit_pin_number, INPUT_PULLDOWN);
+  }
  
 }

@@ -6,8 +6,7 @@
 #include "motion_buffer.h"
 // These must be non-zero, as 0 signals a motion segment
 typedef enum event_type_t {
-  DWELL = 1,
-  FIRE_LASER = 2
+  NOTHING = 1
 } event_type_t;
 
 

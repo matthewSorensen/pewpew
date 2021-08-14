@@ -25,7 +25,7 @@ uint32_t initialize_dda(volatile double* start, double* end){
     
     if(d < 0){
       d = 0 - d;
-      dir_mask |= axis_to_dir[i];
+      dir_mask |= motor_pins[i].dir_pin_bitmask;
       dda.error_acc[i] = -1 * (s - qs);
       dda.step_sign[i] = -1;
     } else {
@@ -78,7 +78,7 @@ uint32_t compute_step(double* length_dest, volatile int32_t* step_count_dest){
       if(error > 0.5){
 	error -= 1.0;
 	if(count > 0){
-	  steps |= axis_to_step[i];
+	  steps |= motor_pins[i].step_pin_bitmask;
 	  count -= 1;
 	  dda.step_count[i] = count;
 	  step_count_dest[i] += dda.step_sign[i];
@@ -108,7 +108,7 @@ uint32_t compute_step(double* length_dest, volatile int32_t* step_count_dest){
     if(error > 0.5 - 1.0 / OVERSAMPLE){
       error -= 1.0;
       if(count > 0){
-	steps |= axis_to_step[i];
+	steps |= motor_pins[i].step_pin_bitmask;
 	count -= 1;
 	dda.step_count[i] = count;
 	step_count_dest[i] += dda.step_sign[i];
