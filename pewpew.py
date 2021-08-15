@@ -3,6 +3,7 @@ import struct
 from collections import namedtuple
 from os.path import join
 from itertools import islice
+import time
 
 class MessageType(Enum):
     # Host sends an INQUIRE message, and waits for a DESCRIBE message. This may contain sundry data,
