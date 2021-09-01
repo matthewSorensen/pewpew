@@ -13,6 +13,14 @@ typedef struct motion_segment_t {
   double coords[NUM_AXIS];
 } motion_segment_t;
 
+// Event segments are exactly the same size and layout as motion segments, but have
+// some fields renamed for sanity.
+typedef struct event_segment_t {
+  uint32_t move_id;
+  uint32_t move_flag;
+  double args[NUM_AXIS + 2];
+} event_segment_t;
+
 
 typedef struct motion_state_t {
   // Where are we?

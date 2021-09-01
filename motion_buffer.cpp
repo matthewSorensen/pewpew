@@ -151,7 +151,7 @@ void stepper_isr(void){
 
   if(mstate.move != NULL){
     if(mstate.move_flag){
-      uint32_t delay = execute_event(mstate.move);
+      uint32_t delay = execute_event((event_segment_t*) mstate.move);
       if(delay){ // We need to keep waiting for a bit
 	PIT_LDVAL1 = TICKS_PER_US * delay;
 	PIT_TCTRL1 = TIE | TEN;
