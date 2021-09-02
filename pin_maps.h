@@ -29,6 +29,7 @@ typedef struct motor_pins_t {
 
 
 #define MOTOR_PINS(step, dir) {.step_pin_number = step, .step_pin_bitmask = PIN_BITMASK(step), .dir_pin_number = dir, .dir_pin_bitmask = PIN_BITMASK(dir)}
+#define STEP_ONLY_MOTOR(step) {.step_pin_number = step, .step_pin_bitmask = PIN_BITMASK(step), .dir_pin_number = 0, .dir_pin_bitmask = 0}
 
 extern const motor_pins_t motor_pins[NUM_AXIS];
 

@@ -13,7 +13,7 @@ typedef struct dda_state_h {
   int32_t step_sign[NUM_AXIS];
   
   double qunit[NUM_AXIS]; // Quantized unit vector - unit vector in step space
-  double qlength; // Lenght of the move in step space
+  double qlength; // Length of the move in step space
   double prev_length;
   
 } dda_state_h;
