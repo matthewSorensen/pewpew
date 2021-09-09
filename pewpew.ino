@@ -115,6 +115,16 @@ void handle_message(message_type_t mess){
       cs.suppress_buffer_count--;
     cs.buffer_done = 0;
   } break;
+
+  case MESSAGE_IMMEDIATE: {
+    event_segment_t* event = (event_segment_t*) message_buffer;
+    
+    if(!event->move_flag)
+      error_and_die("Immediate events must not be motion segments\n");
+    
+    execute_event(event,1);
+  } break;
+
   case MESSAGE_HOME:
     if(cs.status != STATUS_IDLE)
       error_and_die("Homing cycle must start from idle state");

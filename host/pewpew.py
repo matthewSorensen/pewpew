@@ -21,8 +21,9 @@ class MessageType(Enum):
     EXPECT = auto() # Host tells client to expect a given number of segments, and don't bother sending buffer size updates
     DONE = auto()   # Host tells client that the no more moves will be sent, so running to the end isn't an underflow error
     
-    # And the actual messages we care about - motion segments, and homing moves
+    # And the actual messages we care about - motion segments, immediate segments, and homing moves
     SEGMENT = auto()  # Host sends a segment to go into the execution buffer
+    IMMEDIATE = auto() # Host sends a segment that gets executed instantly, and isn't buffered
     HOME = auto()     # Host starts a homing cycle
 
     # Start executing moves from the execution buffer
@@ -106,6 +107,7 @@ def variable_structs(d,axes):
 
     d[MessageType.STATUS] = StatusMessage.table_entry(axes)
     d[MessageType.SEGMENT] = struct.Struct(f"<LL{axes + 2}d"), None, None
+    d[MessageType.IMMEDIATE] = struct.Struct(f"<LL{axes + 2}d"), None, None
     return d
 
 

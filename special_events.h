@@ -15,6 +15,6 @@ typedef enum event_type_t {
 // microseconds. If this is non-zero, the ISR will set a timer for that delay, and then call
 // execute_events again when the timer fires - the process repeats until execute_event returns
 // a zero-length delay.
-uint32_t execute_event(event_segment_t*);
+uint32_t execute_event(event_segment_t*,uint32_t);
 
 #endif
