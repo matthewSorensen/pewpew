@@ -1,4 +1,5 @@
 #include "core_pins.h"
+
 #include "protocol_constants.h"
 #include "machine_state.h"
 #include "motion_buffer.h"
@@ -15,11 +16,13 @@ void build_status_message(status_message_t* sm){
   sm->flag = cs.status;
   sm->buffer_slots = free_buffer_spaces();
 
-  if(cs.status == STATUS_BUSY){
+  if(cs.status == STATUS_BUSY || cs.status == STATUS_HALT){
     sm->move_id = mstate.move_id;
   }else{
     sm->move_id = 0;
   }
+
+  sm->override = mstate.override_current;
   
   for(int i = 0; i < NUM_AXIS; i++){
     sm->pos[i] = mstate.position[i];
@@ -100,24 +103,28 @@ void handle_message(message_type_t mess){
   } break;
 
   case MESSAGE_HOME:
-    if(cs.status != STATUS_IDLE)
+    if(!(cs.status == STATUS_IDLE || cs.status == STATUS_HALT))
       error_and_die("Homing cycle must start from idle state");
     start_homing(message_buffer);
-    cs.status = STATUS_HOMING;
     break;
   case MESSAGE_START:
     // Start is idempotent
-    if(cs.status != STATUS_IDLE || cs.status == STATUS_BUSY)
+    if(!(cs.status == STATUS_IDLE || cs.status == STATUS_HALT))
       error_and_die("Cycle must start from idle state");
-    cs.status = STATUS_BUSY;
     start_motion();
     break;
+
+  case MESSAGE_OVERRIDE:{
+    double* message = (double*) message_buffer;
+    set_override(message[0], message[1], cs.status == STATUS_BUSY);
+    break;
+  };
   case MESSAGE_DESCRIBE:
   case MESSAGE_STATUS:
   case MESSAGE_BUFFER:
   case MESSAGE_ERROR:
   default:
-    error_and_die("Recived message in wrong direction\n");
+    error_and_die("Received message in wrong direction\n");
   }
 }
 

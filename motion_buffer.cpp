@@ -43,6 +43,13 @@ void initialize_motion_state(void){
     mstate.position[i] = 0;
   }
   manual_trigger = 0;
+
+
+  mstate.override_current = 1.0;
+  mstate.override_changing = 0;
+  mstate.override_target = 1.0;
+  mstate.override_velocity = 0.0;
+
 }
 
 uint32_t free_buffer_spaces(void){
@@ -82,7 +89,21 @@ void compute_next_step(void){
   // Then compute how long the move will take, as we know the average velocity.
   dt = 2 / (mstate.velocity + v);
   mstate.velocity = v;
-  
+
+  // But how long will it really take? Apply the feedrate override, and calculate
+  // the new feedrate override if it's changing.
+  dt *= mstate.override_current;
+
+  if(mstate.override_changing){
+    double ov = mstate.override_velocity;
+    double no = mstate.override_current + dt * ov;
+    if((ov < 0 && no <= mstate.override_target) || (mstate.override_target <= no)){
+      mstate.override_changing = 0;
+      no = mstate.override_target;
+    }
+    mstate.override_current = no;
+  }
+
   // Round and clamp the delay length
   ticks = round(dt * TICKS_PER_US);
   mstate.delay = ticks < MIN_STEP_TICKS ? MIN_STEP_TICKS : ticks;
@@ -163,7 +184,7 @@ void stepper_isr(void){
 	// Ok, we're now done with that event! Try to grab a new segment...
 	initialize_next_seg(0);
 	if(mstate.move == NULL){
-	  finish_motion();	
+	  finish_motion(false);	
 	  return;
 	}
 	// If it's not a move, output the new direction bitmasks
@@ -188,15 +209,18 @@ void stepper_isr(void){
     }
     
     compute_next_step(); // Actually compute the step bits and delay for the next pulse
+    if(MAX_OVERRIDE <= mstate.override_current){
+      finish_motion(true);
+    }
     
     if(mstate.step_bitmask == 0){ // If there were no steps left in the move, go on to the next one
       initialize_next_seg(0);
       if(mstate.move == NULL){
-	finish_motion();
+	finish_motion(false);
       }
     }
   }else{
-    finish_motion();	
+    finish_motion(false);
   }
 }
   
@@ -222,19 +246,58 @@ void start_motion(void){
 }
 
 
-void finish_motion(){
+void finish_motion(uint32_t is_halt){
   // Regardless of the reason, clear the interrupt and turn the main timer off - we
   // may still get pin clear ISRs after this, though.
   PIT_TCTRL1 = 0;
   PIT_TFLG1 = TIF;
-  // In all cases, forget the state of the buffer
-  mstate.current_move = 0;
+  // In all cases, forget the state of the buffer, and apply any in-progress feedrate
+  // overrides.
+  mstate.current_move = 0; // Forget everything in the buffer
   mstate.buffer_size = 0;  
   mstate.move = NULL;
-  // Check if we've halted due to running out of moves
-  // without the done flag being set.
-  if(cs.buffer_done)
-    cs.status = STATUS_IDLE;
-  else
-    cs.status = STATUS_BUFFER_UNDERFLOW;
+  mstate.override_current = mstate.override_target;
+  mstate.override_changing = 0;
+  // If we've halted due to a feed rate override, change the state to STATUS_HALT,
+  // and don't do anything else.
+  if(is_halt){
+    cs.status = STATUS_HALT;
+  }else{
+    // Otherwise, check if we've halted due to running out of moves
+    // without the done flag being set.
+    if(cs.buffer_done)
+      cs.status = STATUS_IDLE;
+    else
+      cs.status = STATUS_BUFFER_UNDERFLOW;
+  }
+}
+
+
+
+
+void set_override(double value, double velocity, uint32_t active){
+  // Make sure we're not going too fast - enforce the minimum override value.
+  if(value < MIN_OVERRIDE)
+    value = MIN_OVERRIDE;
+  
+  if(active){
+    mstate.override_changing = 0; 
+    // If we're active, don't enforce the max override - we may be trying to halt.
+    if(velocity < 0)
+      velocity = 0 - velocity;
+    if(value < mstate.override_current)
+      velocity = 0 - velocity;
+    
+    mstate.override_target = value;
+    mstate.override_velocity = velocity;
+    mstate.override_changing = 1;
+  }else{
+    // If we're not active, enforce the max limit, and set the override directly
+    if(value > MAX_OVERRIDE)
+      value = MAX_OVERRIDE;
+    mstate.override_current = value;
+    mstate.override_target = value;
+    mstate.override_velocity = 0;
+    mstate.override_changing = 0;
+  }
 }

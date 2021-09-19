@@ -21,6 +21,10 @@ typedef struct event_segment_t {
   double args[NUM_AXIS + 2];
 } event_segment_t;
 
+// We can go up to 4x faster
+#define MIN_OVERRIDE 0.25
+// ...and 32x slower. Anything more, and it's interpreted as a halt.
+#define MAX_OVERRIDE 32.0
 
 typedef struct motion_state_t {
   // Where are we?
@@ -40,6 +44,14 @@ typedef struct motion_state_t {
   int32_t step_update[NUM_AXIS];
   uint32_t dir_bitmask;  // What's the current state of the direction bits?
   uint32_t delay; // How long should we delay?
+
+  // State of feed overrides:
+  double override_current; // What's our current feed rate override?
+  uint32_t override_changing; // Is it currently changing?
+  double override_target;   // What are we changing it to?
+  double override_velocity; // How fast is it changing per microsecond?
+  
+  
 } motion_state_t;
 
 // Must be a power of two
@@ -55,5 +67,7 @@ motion_segment_t* next_free_segment(void);
 void start_motion(void);
 void finish_motion(void);
 void stepper_isr(void);
+void set_override(double,double,uint32_t);
+void finish_motion(uint32_t);
 
 #endif

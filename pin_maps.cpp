@@ -2,8 +2,8 @@
 #include "pin_maps.h"
 
 
-const motor_pins_t motor_pins[NUM_AXIS] = {MOTOR_PINS(19, 20),
-					   STEP_ONLY_MOTOR(18)};
+const motor_pins_t motor_pins[NUM_AXIS] = {MOTOR_PINS(23, 22),
+					   MOTOR_PINS(19, 18)};
 
 
 const homing_pins_t home_pins[NUM_AXIS] = {HOMING_PIN(0,0,HOME_REVERSE),

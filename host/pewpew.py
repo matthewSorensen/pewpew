@@ -28,7 +28,8 @@ class MessageType(Enum):
 
     # Start executing moves from the execution buffer
     START = auto()
-
+    # Realtime feedrate override - also the mechanism for implementing pauses.
+    OVERRIDE = auto()
     # and a super generic error message that just signals that things are fatally broken, and
     # any debug info should be sought elsewhere
     ERROR = auto()
@@ -49,6 +50,7 @@ class HomingCyclePhase(Enum):
 class StatusFlag(Enum):
     IDLE = auto() # Nothing in the execution buffer, not doing anything.
     BUSY = auto() # Currently executing from the buffer
+    HALT = auto() # A real-time override set the speed to 0; save position but require an entirely new buffer.
     HOMING = auto() # Waiting on a homing cycle to finish
     DEAD = auto() # Some sort of fatal error happened.
     BUFFER_UNDERFLOW = auto() # Ran out of moves without getting a DONE message
@@ -59,16 +61,16 @@ class SystemDescription(namedtuple("SystemDescription", "version axis_count magi
     def table_entry():
         return struct.Struct("<LLLL"), None, SystemDescription
 
-class StatusMessage(namedtuple("StatusMessage","request_counter status_flag free_space move_number position")):
+class StatusMessage(namedtuple("StatusMessage","request_counter status_flag free_space move_number override position")):
     __slots__ = ()
 
     @staticmethod
     def unpack(*args):    
-        return StatusMessage(args[0], StatusFlag(args[1]), args[2], args[3], args[4:])
+        return StatusMessage(args[0], StatusFlag(args[1]), args[2], args[3], args[4], args[5:])
     
     @staticmethod
     def table_entry(axes):
-        return struct.Struct(f"<LLLL{axes}l"), None, StatusMessage.unpack
+        return struct.Struct(f"<LLLLd{axes}l"), None, StatusMessage.unpack
 
     
 class BufferMessage(namedtuple("BufferMessage", "request_counter free_space")):
@@ -97,6 +99,7 @@ def initial_structs():
     d[MessageType.BUFFER] = BufferMessage.table_entry()
     d[MessageType.ASK] = struct.Struct("<L"), None, None
     d[MessageType.EXPECT] = struct.Struct("<LL"), None, None
+    d[MessageType.OVERRIDE] = struct.Struct("<dd"), None, None # target override, override velocity (per microseconds)
     # We have under 32 axes, so homing commands are also fixed format
     d[MessageType.HOME] = struct.Struct("<LLd"), None, None # axis bitmask, homing mode, max speed
     return d
