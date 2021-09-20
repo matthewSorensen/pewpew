@@ -109,7 +109,7 @@ void handle_message(message_type_t mess){
     break;
   case MESSAGE_START:
     // Start is idempotent
-    if(!(cs.status == STATUS_IDLE || cs.status == STATUS_HALT))
+    if(!(cs.status == STATUS_IDLE || cs.status == STATUS_BUSY || cs.status == STATUS_HALT))
       error_and_die("Cycle must start from idle state");
     start_motion();
     break;
