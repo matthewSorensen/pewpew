@@ -191,6 +191,11 @@ void stepper_isr(void){
 }
   
 void start_motion(void){
+  // Copy the current position to the move end vector - make
+  // the DDA think we just came out of a move ending at the current position
+  for(int i = 0; i<NUM_AXIS; i++){
+    mstate.end[i] = mstate.position[i];
+  }
   // Grab a chunk, or nope out if we don't have any 
   if(!initialize_next_seg(1))
     return;
