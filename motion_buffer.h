@@ -53,6 +53,7 @@ void initialize_motion_state(void);
 uint32_t free_buffer_spaces(void);
 motion_segment_t* next_free_segment(void);
 void start_motion(void);
+void finish_motion(void);
 void stepper_isr(void);
 
 #endif

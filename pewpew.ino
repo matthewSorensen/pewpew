@@ -1,39 +1,13 @@
 #include "core_pins.h"
 #include "protocol_constants.h"
+#include "machine_state.h"
 #include "motion_buffer.h"
 #include "pin_maps.h"
 #include "dda.h"
 #include "special_events.h"
 #include "homing.h"
 
-typedef struct comm_state_t {
-  // Is the serial port currently active?
-  uint32_t serial_active;
-  // Have we shook hands with the device, to the point that we can sent messages beyond DESCRIBE?
-  uint32_t have_handshook;
-  // How many more segments/events should we wait for before we send a buffer count size?
-  uint32_t suppress_buffer_count;
-  // What are we currently doing?
-  status_flag_t status;
 
-  // Have we gotten a 'done' message, indicating that finishing the
-  // buffer isn't an underflow state? Resets every time a move is put into the
-  // motion buffer
-  uint32_t buffer_done;
-  
-  uint32_t expect_request_id;
-  
-} comm_state_t;
-
-typedef struct status_message_t {
-  uint32_t request_id; 
-  uint32_t flag;
-  uint32_t buffer_slots;
-  uint32_t move_id;
-  int32_t pos[NUM_AXIS];
-} status_message_t;
-
-static comm_state_t cs;
 
 void build_status_message(status_message_t* sm){
   // Yeah, we don't overwrite the request id, because it's the same as the incoming
@@ -183,25 +157,6 @@ int main(void){
       cs.expect_request_id = 0;
       cs.buffer_done = 1;
       initialize_motion_state();
-    }
-    // Update the current status
-    switch(cs.status){
-    case STATUS_HOMING:
-      if(homing_state.unhomed_axes == 0)
-	cs.status = STATUS_IDLE;
-      break;
-    case STATUS_BUSY:
-      if(mstate.move == NULL){
-	if(cs.buffer_done){
-	  cs.status = STATUS_IDLE;
-	}else{
-	  cs.status = STATUS_BUFFER_UNDERFLOW;
-	}
-      }
-      break;
-    case STATUS_IDLE:
-    default:
-      break;
     }
     // Check for serial input
     if(Serial.available()){

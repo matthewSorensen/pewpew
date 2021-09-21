@@ -5,6 +5,7 @@
 #include "pin_maps.h"
 #include "dda.h"
 #include "special_events.h"
+#include "machine_state.h"
 
 #define TIE 2
 #define TEN 1
@@ -81,6 +82,8 @@ void compute_next_step(void){
   // Then compute how long the move will take, as we know the average velocity.
   dt = 2 / (mstate.velocity + v);
   mstate.velocity = v;
+  
+  // Round and clamp the delay length
   ticks = round(dt * TICKS_PER_US);
   mstate.delay = ticks < MIN_STEP_TICKS ? MIN_STEP_TICKS : ticks;
 }
@@ -159,8 +162,10 @@ void stepper_isr(void){
       }else{
 	// Ok, we're now done with that event! Try to grab a new segment...
 	initialize_next_seg(0);
-	if(mstate.move == NULL)
+	if(mstate.move == NULL){
+	  finish_motion();	
 	  return;
+	}
 	// If it's not a move, output the new direction bitmasks
 	if(!mstate.move_flag)
 	  DIR_REG = (DIR_REG & ~DIR_BITMASK) | mstate.dir_bitmask;
@@ -180,19 +185,22 @@ void stepper_isr(void){
       for(int i = 0; i < NUM_AXIS; i++){
 	mstate.position[i] += mstate.step_update[i];
       }
-      
     }
     
     compute_next_step(); // Actually compute the step bits and delay for the next pulse
+    
     if(mstate.step_bitmask == 0){ // If there were no steps left in the move, go on to the next one
       initialize_next_seg(0);
+      if(mstate.move == NULL){
+	finish_motion();
+      }
     }
+  }else{
+    finish_motion();	
   }
 }
   
 void start_motion(void){
-  // Copy the current position to the move end vector - make
-  // the DDA think we just came out of a move ending at the current position
   for(int i = 0; i<NUM_AXIS; i++){
     mstate.end[i] = mstate.position[i];
   }
@@ -206,7 +214,27 @@ void start_motion(void){
   // Configure, but don't fire the main timing clock
   PIT_LDVAL1 = 0;
   PIT_TCTRL1 = TIE;
+  // Record that we're moving
+  cs.status = STATUS_BUSY;
   // Then manually call the ISR to fire the first step of the move
   manual_trigger = 1;
   stepper_isr();
+}
+
+
+void finish_motion(){
+  // Regardless of the reason, clear the interrupt and turn the main timer off - we
+  // may still get pin clear ISRs after this, though.
+  PIT_TCTRL1 = 0;
+  PIT_TFLG1 = TIF;
+  // In all cases, forget the state of the buffer
+  mstate.current_move = 0;
+  mstate.buffer_size = 0;  
+  mstate.move = NULL;
+  // Check if we've halted due to running out of moves
+  // without the done flag being set.
+  if(cs.buffer_done)
+    cs.status = STATUS_IDLE;
+  else
+    cs.status = STATUS_BUFFER_UNDERFLOW;
 }

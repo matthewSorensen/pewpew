@@ -2,6 +2,7 @@
 #include "pin_maps.h"
 #include "motion_buffer.h"
 #include "core_pins.h"
+#include "machine_state.h"
 
 #define TIE 2
 #define TEN 1
@@ -72,9 +73,11 @@ void homing_isr(void){
     STEP_SET = steps; // Output the next pulse
     PIT_TCTRL2 = TIE | TEN; // Trigger the reset timer
     PIT_TCTRL1 = TIE | TEN; // Trigger the next pulse
+  }else{
+    set_status(STATUS_IDLE);
   }
 }
-
+ 
 
 void start_homing(void* message){
   homing_message_t* ptr = (homing_message_t*) message;
@@ -112,5 +115,6 @@ void start_homing(void* message){
   PIT_LDVAL2 = 150 * 10; //STEP_PULSE_LENGTH * TICKS_PER_US;
   PIT_LDVAL1 = step_delay;
   PIT_TCTRL1 = TIE | TEN;
+  cs.status = STATUS_HOMING;
 }
 
