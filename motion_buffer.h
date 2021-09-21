@@ -21,10 +21,10 @@ typedef struct event_segment_t {
   double args[NUM_AXIS + 2];
 } event_segment_t;
 
-// We can go up to 4x faster
-#define MIN_OVERRIDE 0.25
-// ...and 32x slower. Anything more, and it's interpreted as a halt.
-#define MAX_OVERRIDE 32.0
+// We can go up to 32x slower - more than that, it's interpreted as a halt.
+#define MIN_OVERRIDE (1/32.0)
+// ...and 4x faster.
+#define MAX_OVERRIDE 4.0
 
 typedef struct motion_state_t {
   // Where are we?

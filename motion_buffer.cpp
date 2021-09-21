@@ -92,7 +92,7 @@ void compute_next_step(void){
 
   // But how long will it really take? Apply the feedrate override, and calculate
   // the new feedrate override if it's changing.
-  dt *= mstate.override_current;
+  dt /= mstate.override_current;
 
   if(mstate.override_changing){
     double ov = mstate.override_velocity;
@@ -209,7 +209,7 @@ void stepper_isr(void){
     }
     
     compute_next_step(); // Actually compute the step bits and delay for the next pulse
-    if(MAX_OVERRIDE <= mstate.override_current){
+    if(mstate.override_current <= MIN_OVERRIDE){
       finish_motion(true);
     }
     
@@ -277,12 +277,14 @@ void finish_motion(uint32_t is_halt){
 
 void set_override(double value, double velocity, uint32_t active){
   // Make sure we're not going too fast - enforce the minimum override value.
+  if(value > MAX_OVERRIDE)
+    value = MAX_OVERRIDE;
   if(value < MIN_OVERRIDE)
     value = MIN_OVERRIDE;
+
   
   if(active){
     mstate.override_changing = 0; 
-    // If we're active, don't enforce the max override - we may be trying to halt.
     if(velocity < 0)
       velocity = 0 - velocity;
     if(value < mstate.override_current)
@@ -292,9 +294,6 @@ void set_override(double value, double velocity, uint32_t active){
     mstate.override_velocity = velocity;
     mstate.override_changing = 1;
   }else{
-    // If we're not active, enforce the max limit, and set the override directly
-    if(value > MAX_OVERRIDE)
-      value = MAX_OVERRIDE;
     mstate.override_current = value;
     mstate.override_target = value;
     mstate.override_velocity = 0;
