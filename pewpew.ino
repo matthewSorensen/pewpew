@@ -22,7 +22,7 @@ void build_status_message(status_message_t* sm){
     sm->move_id = 0;
   }
 
-  sm->override = mstate.override_current;
+  sm->override = fstate.current;
   
   for(int i = 0; i < NUM_AXIS; i++){
     sm->pos[i] = mstate.position[i];

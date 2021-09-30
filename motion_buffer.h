@@ -45,14 +45,15 @@ typedef struct motion_state_t {
   uint32_t dir_bitmask;  // What's the current state of the direction bits?
   uint32_t delay; // How long should we delay?
 
-  // State of feed overrides:
-  double override_current; // What's our current feed rate override?
-  uint32_t override_changing; // Is it currently changing?
-  double override_target;   // What are we changing it to?
-  double override_velocity; // How fast is it changing per microsecond?
-  
-  
 } motion_state_t;
+
+typedef struct feedrate_state_t {
+  // State of feed overrides:
+  double current; // What's our current feed rate override?
+  uint32_t changing; // Is it currently changing?
+  double target;   // What are we changing it to?
+  double velocity; // How fast is it changing per microsecond?
+} feedrate_state_t;
 
 // Must be a power of two
 #define MOTION_BUFFER_SIZE 128 
@@ -60,6 +61,7 @@ typedef struct motion_state_t {
 
 extern motion_segment_t motion_buffer[MOTION_BUFFER_SIZE];
 extern volatile motion_state_t mstate;
+extern volatile feedrate_state_t fstate;
 
 void initialize_motion_state(void);
 uint32_t free_buffer_spaces(void);

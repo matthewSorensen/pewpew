@@ -21,6 +21,7 @@
 
 motion_segment_t motion_buffer[MOTION_BUFFER_SIZE];
 volatile motion_state_t mstate;
+volatile feedrate_state_t fstate;
 volatile uint32_t manual_trigger;
 
 
@@ -42,14 +43,9 @@ void initialize_motion_state(void){
     mstate.end[i] = 0.0;
     mstate.position[i] = 0;
   }
+  
   manual_trigger = 0;
-
-
-  mstate.override_current = 1.0;
-  mstate.override_changing = 0;
-  mstate.override_target = 1.0;
-  mstate.override_velocity = 0.0;
-
+  set_override(1.0, 0.0, false);
 }
 
 uint32_t free_buffer_spaces(void){
@@ -66,6 +62,15 @@ motion_segment_t* next_free_segment(void){
   return  &motion_buffer[(mstate.current_move + mstate.buffer_size) & MOTION_BUFFER_MASK];
 }
 
+void compute_next_feedrate(double dt){
+    double ov = fstate.velocity;
+    double no = fstate.current + dt * ov;
+    if((ov < 0 && no <= fstate.target) || (fstate.target <= no)){
+      fstate.changing = 0;
+      no = fstate.target;
+    }
+    fstate.current = no;
+}
 
 void compute_next_step(void){
   double dt;
@@ -92,17 +97,9 @@ void compute_next_step(void){
 
   // But how long will it really take? Apply the feedrate override, and calculate
   // the new feedrate override if it's changing.
-  dt /= mstate.override_current;
-
-  if(mstate.override_changing){
-    double ov = mstate.override_velocity;
-    double no = mstate.override_current + dt * ov;
-    if((ov < 0 && no <= mstate.override_target) || (mstate.override_target <= no)){
-      mstate.override_changing = 0;
-      no = mstate.override_target;
-    }
-    mstate.override_current = no;
-  }
+  dt /= fstate.current;
+  if(fstate.changing)
+    compute_next_feedrate(dt);
 
   // Round and clamp the delay length
   ticks = round(dt * TICKS_PER_US);
@@ -209,7 +206,7 @@ void stepper_isr(void){
     }
     
     compute_next_step(); // Actually compute the step bits and delay for the next pulse
-    if(mstate.override_current <= MIN_OVERRIDE){
+    if(fstate.current <= MIN_OVERRIDE){
       finish_motion(true);
     }
     
@@ -256,8 +253,9 @@ void finish_motion(uint32_t is_halt){
   mstate.current_move = 0; // Forget everything in the buffer
   mstate.buffer_size = 0;  
   mstate.move = NULL;
-  mstate.override_current = mstate.override_target;
-  mstate.override_changing = 0;
+  // Apply any outstanding feedrate changes
+  fstate.current = fstate.target;
+  fstate.changing = false;
   // If we've halted due to a feed rate override, change the state to STATUS_HALT,
   // and don't do anything else.
   if(is_halt){
@@ -284,19 +282,19 @@ void set_override(double value, double velocity, uint32_t active){
 
   
   if(active){
-    mstate.override_changing = 0; 
+    fstate.changing = 0; 
     if(velocity < 0)
       velocity = 0 - velocity;
-    if(value < mstate.override_current)
+    if(value < fstate.current)
       velocity = 0 - velocity;
     
-    mstate.override_target = value;
-    mstate.override_velocity = velocity;
-    mstate.override_changing = 1;
+    fstate.target = value;
+    fstate.velocity = velocity;
+    fstate.changing = 1;
   }else{
-    mstate.override_current = value;
-    mstate.override_target = value;
-    mstate.override_velocity = 0;
-    mstate.override_changing = 0;
+    fstate.current = value;
+    fstate.target = value;
+    fstate.velocity = 0;
+    fstate.changing = 0;
   }
 }
