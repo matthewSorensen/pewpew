@@ -3,17 +3,24 @@
 
 #include <stdint.h>
 
-#define NUM_AXIS 2
+#define NUM_AXIS 3
 
 // These definitions aren't entirely orthagonal from the
 // pin defs in pin_maps.h, alas...
-#define STEP_SET   GPIO6_DR_SET
-#define STEP_CLEAR GPIO6_DR_CLEAR
+
+
+//#define STEP_SET   GPIO6_DR_SET
+//#define STEP_CLEAR GPIO6_DR_CLEAR
+
+#define STEP_SET   GPIO6_DR_CLEAR
+#define STEP_CLEAR GPIO6_DR_SET
+
+
 #define DIR_REG GPIO6_DR
 #define LIMIT_REG CORE_PIN0_PINREG
 // Same here - changing NUM_AXIS requires updating this too...
-#define DIR_BITMASK (motor_pins[0].dir_pin_bitmask | motor_pins[1].dir_pin_bitmask)
-#define STEP_BITMASK  (motor_pins[0].step_pin_bitmask | motor_pins[1].step_pin_bitmask)
+#define DIR_BITMASK (motor_pins[0].dir_pin_bitmask | motor_pins[1].dir_pin_bitmask |  motor_pins[2].dir_pin_bitmask)
+#define STEP_BITMASK  (motor_pins[0].step_pin_bitmask | motor_pins[1].step_pin_bitmask| motor_pins[2].step_pin_bitmask)
 
 #define PIN_BITMASK_(pin) (CORE_PIN##pin##_BITMASK)
 #define PIN_BITMASK(pin) PIN_BITMASK_(pin)

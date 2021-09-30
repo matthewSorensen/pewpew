@@ -2,12 +2,11 @@
 #include "pin_maps.h"
 
 
-const motor_pins_t motor_pins[NUM_AXIS] = {MOTOR_PINS(23, 22),
-					   MOTOR_PINS(19, 18)};
+const motor_pins_t motor_pins[NUM_AXIS] = {MOTOR_PINS(17, 16),
+					   MOTOR_PINS(22, 23),
+					   MOTOR_PINS(14, 15)};
 
-
-const homing_pins_t home_pins[NUM_AXIS] = {HOMING_PIN(0,0,HOME_REVERSE),
-					   HOMING_PIN(1,0,HOME_REVERSE)};
+const homing_pins_t home_pins[NUM_AXIS] = {NO_HOME, NO_HOME, NO_HOME};
 
 
 void initialize_gpio(void){
