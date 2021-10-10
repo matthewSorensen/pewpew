@@ -17,7 +17,7 @@
 
 
 #define DIR_REG GPIO6_DR
-#define LIMIT_REG CORE_PIN0_PINREG
+#define LIMIT_REG CORE_PIN2_PINREG
 // Same here - changing NUM_AXIS requires updating this too...
 #define DIR_BITMASK (motor_pins[0].dir_pin_bitmask | motor_pins[1].dir_pin_bitmask |  motor_pins[2].dir_pin_bitmask)
 #define STEP_BITMASK  (motor_pins[0].step_pin_bitmask | motor_pins[1].step_pin_bitmask| motor_pins[2].step_pin_bitmask)
