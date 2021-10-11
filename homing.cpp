@@ -3,6 +3,7 @@
 #include "motion_buffer.h"
 #include "core_pins.h"
 #include "machine_state.h"
+#include "motion_buffer.h"
 
 #define TIE 2
 #define TEN 1
@@ -75,9 +76,10 @@ void homing_isr(void){
     PIT_TCTRL1 = TIE | TEN; // Trigger the next pulse
   }else{
     set_status(STATUS_IDLE);
+    attachInterruptVector(IRQ_PIT,stepper_isr);
   }
 }
- 
+
 
 void start_homing(void* message){
   homing_message_t* ptr = (homing_message_t*) message;
@@ -89,7 +91,8 @@ void start_homing(void* message){
   
   homing_state.unhomed_axes = 0;
   if(direction == HOMING_DONE) return; // We're done!
-  
+
+
   for(int i = 0; i < NUM_AXIS; i++){
     
     if(!(axes & (1<<i)) || (home_pins[i].flags & HOME_NONE)){
