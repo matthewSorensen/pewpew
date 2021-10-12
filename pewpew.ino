@@ -99,7 +99,7 @@ void handle_message(message_type_t mess){
     if(!event->move_flag)
       error_and_die("Immediate events must not be motion segments\n");
     
-    execute_event(event,1);
+    execute_event(event,1,1);
   } break;
 
   case MESSAGE_HOME:

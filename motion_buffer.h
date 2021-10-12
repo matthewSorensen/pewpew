@@ -36,6 +36,7 @@ typedef struct motion_state_t {
   // State of the current move:
   uint32_t move_id;    // What's the current move id/number, directly taken from the move
   uint32_t move_flag;  // Move flags from the current move - if non-zero, it's actually a special event
+  uint32_t event_first_trigger; // This is set to 1 when a special event is initialized
   double velocity;     // What's the velocity at the end of the last step?
   double acceleration; // Acceleration over this segment?
   double end[NUM_AXIS];// What's the destination of this move?

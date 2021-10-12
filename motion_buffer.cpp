@@ -130,8 +130,10 @@ uint32_t initialize_next_seg(uint32_t first){
   mstate.move_id = move->move_id;
   mstate.move_flag = move->move_flag;
   // If it's a special event, don't initialize the dda...
-  if(mstate.move_flag)
+  if(mstate.move_flag){
+    mstate.event_first_trigger = 1;
     return 1;
+  }
   
   // Initialize the dda, from the end point of the last move, and the end of the new one, giving us
   // our new direction mask
@@ -172,7 +174,8 @@ void stepper_isr(void){
 
   if(mstate.move != NULL){
     if(mstate.move_flag){
-      uint32_t delay = execute_event((event_segment_t*) mstate.move, 0);
+      uint32_t delay = execute_event((event_segment_t*) mstate.move, 0, !!mstate.event_first_trigger);
+      mstate.event_first_trigger = 0;
       if(delay){ // We need to keep waiting for a bit
 	PIT_LDVAL1 = TICKS_PER_US * delay;
 	PIT_TCTRL1 = TIE | TEN;

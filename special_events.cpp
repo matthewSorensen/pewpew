@@ -4,6 +4,6 @@
 #include "pin_maps.h"
 #include "special_events.h"
 
-uint32_t execute_event(event_segment_t* event, uint32_t immediate){  
+uint32_t execute_event(event_segment_t* event, uint32_t is_immediate, uint32_t is_initial){  
   return 0;
 }
