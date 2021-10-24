@@ -13,7 +13,9 @@ typedef enum event_type_t {
 // begin the event. As events may not block, execute_event returns a delay length in
 // microseconds. If this is non-zero, the ISR will set a timer for that delay, and then call
 // execute_events again when the timer fires - the process repeats until execute_event returns
-// a zero-length delay.
+// a zero-length delay. If a negative delay is returned the stepper ISR will halt until the
+// stepper ISR is triggered from some other source - at which point, it'll return control
+// to the event that halted execution.
 
 // Immediate events must not return a delay, or access any event state - the delay will be
 // ignored, and the immediate event may interfere with a sleeping event.

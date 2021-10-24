@@ -72,5 +72,6 @@ void finish_motion(void);
 void stepper_isr(void);
 void set_override(double,double,uint32_t);
 void finish_motion(uint32_t);
+void trigger_stepper_isr(void);
 
 #endif

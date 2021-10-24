@@ -22,7 +22,6 @@
 motion_segment_t motion_buffer[MOTION_BUFFER_SIZE];
 volatile motion_state_t mstate;
 volatile feedrate_state_t fstate;
-volatile uint32_t manual_trigger;
 
 
 void initialize_motion_state(void){
@@ -44,7 +43,6 @@ void initialize_motion_state(void){
     mstate.position[i] = 0;
   }
   
-  manual_trigger = 0;
   set_override(1.0, 0.0, false);
 }
 
@@ -165,8 +163,7 @@ void stepper_isr(void){
     return;
   }
   // ... not sure why this would happen, but otherwise make sure we're not getting stray PIT interrupts
-  if(!(PIT_TFLG1 || manual_trigger)) return;
-  manual_trigger = 0;
+  if(!(PIT_TFLG1)) return;
 
   // Turn off the timer...
   PIT_TCTRL1 = 0;
@@ -176,7 +173,11 @@ void stepper_isr(void){
     if(mstate.move_flag){
       uint32_t delay = execute_event((event_segment_t*) mstate.move, 0, !!mstate.event_first_trigger);
       mstate.event_first_trigger = 0;
-      if(delay){ // We need to keep waiting for a bit
+      if(delay < 0){
+	// The special event wants to hand off execution somewhere else, and will
+	// trigger the stepper ISR itself, once it's ready to resume normal operation
+	return;
+      } else if(delay > 0){ // We need to keep waiting for a bit
 	PIT_LDVAL1 = TICKS_PER_US * delay;
 	PIT_TCTRL1 = TIE | TEN;
 	return;
@@ -223,6 +224,12 @@ void stepper_isr(void){
     finish_motion(false);
   }
 }
+
+
+void trigger_stepper_isr(void){
+  PIT_LDVAL1 = TICKS_PER_US;
+  PIT_TCTRL1 = TIE | TEN;
+}
   
 void start_motion(void){
   for(int i = 0; i<NUM_AXIS; i++){
@@ -241,8 +248,7 @@ void start_motion(void){
   // Record that we're moving
   cs.status = STATUS_BUSY;
   // Then manually call the ISR to fire the first step of the move
-  manual_trigger = 1;
-  stepper_isr();
+  trigger_stepper_isr();
 }
 
 
