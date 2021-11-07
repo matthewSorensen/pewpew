@@ -62,7 +62,7 @@ void handle_message(message_type_t mess){
     send_message(MESSAGE_STATUS, message_buffer);
     break;
 
-  case MESSAGE_EXPECT:{
+  case MESSAGE_BUFFER:{
     uint32_t* message = (uint32_t*) message_buffer;
     cs.expect_request_id = message[0];
     cs.suppress_buffer_count += message[1];
@@ -121,7 +121,6 @@ void handle_message(message_type_t mess){
   };
   case MESSAGE_DESCRIBE:
   case MESSAGE_STATUS:
-  case MESSAGE_BUFFER:
   case MESSAGE_ERROR:
   default:
     error_and_die("Received message in wrong direction\n");

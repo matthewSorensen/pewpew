@@ -17,10 +17,11 @@ class MessageType(Enum):
     STATUS = auto()   # Client sends a full status update
     
     # Control flow for keeping the buffer full, but not too full.
-    BUFFER = auto() # Client sends the number of free execution buffer slots
-    EXPECT = auto() # Host tells client to expect a given number of segments, and don't bother sending buffer size updates
+    # When a BUFFER message is sent from the client to the host, it contains the number of currently free buffer slots
+    # When a BUFFER message is sent from the host to the client, it tells client to expect a given number of segments, and don't bother sending buffer size updates.
+    BUFFER = auto()
     DONE = auto()   # Host tells client that the no more moves will be sent, so running to the end isn't an underflow error
-    
+
     # And the actual messages we care about - motion segments, immediate segments, and homing moves
     SEGMENT = auto()  # Host sends a segment to go into the execution buffer
     IMMEDIATE = auto() # Host sends a segment that gets executed instantly, and isn't buffered
@@ -98,7 +99,6 @@ def initial_structs():
     d[MessageType.DESCRIBE] = SystemDescription.table_entry() 
     d[MessageType.BUFFER] = BufferMessage.table_entry()
     d[MessageType.ASK] = struct.Struct("<L"), None, None
-    d[MessageType.EXPECT] = struct.Struct("<LL"), None, None
     d[MessageType.OVERRIDE] = struct.Struct("<dd"), None, None # target override, override velocity (per microseconds)
     # We have under 32 axes, so homing commands are also fixed format
     d[MessageType.HOME] = struct.Struct("<LLd"), None, None # axis bitmask, homing mode, max speed
@@ -271,7 +271,7 @@ def execute_segments(parser, segments):
     buffer_request_number = next(buffer_gen)
     done = [(MessageType.DONE,())] if segments.done else []
     
-    parser.send_messages([(MessageType.EXPECT,(buffer_request_number,len(start)))] + start + done + [(MessageType.START,())])
+    parser.send_messages([(MessageType.BUFFER,(buffer_request_number,len(start)))] + start + done + [(MessageType.START,())])
     
 
     done = False
@@ -311,7 +311,7 @@ def execute_segments(parser, segments):
                 buffer_request_number = next(buffer_gen)
                 status_request_number = None
                 buffer_done = [(MessageType.DONE,())] if segments.done else []
-                parser.send_messages([(MessageType.EXPECT,(buffer_request_number, len(chunk)))] +  chunk + buffer_done)
+                parser.send_messages([(MessageType.BUFFER,(buffer_request_number, len(chunk)))] +  chunk + buffer_done)
                 
 
 
