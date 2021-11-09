@@ -21,6 +21,8 @@ typedef struct comm_state_t {
   uint32_t buffer_done;
   
   uint32_t expect_request_id;
+
+  uint32_t last_status_time;
   
 } comm_state_t;
 
@@ -34,10 +36,14 @@ typedef struct status_message_t {
 } status_message_t;
 
 extern volatile comm_state_t cs;
+extern volatile status_message_t sm;
 
-
+// Compile the current machine status and send it to the host
+void send_status_message(uint32_t request_id);
+// Set the current status flag
 void set_status(status_flag_t);
 
+void check_status_interval(void);
 #endif
 
 

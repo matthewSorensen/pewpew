@@ -10,26 +10,6 @@
 
 
 
-void build_status_message(status_message_t* sm){
-  // Yeah, we don't overwrite the request id, because it's the same as the incoming
-  // ask request
-  sm->flag = cs.status;
-  sm->buffer_slots = free_buffer_spaces();
-
-  if(cs.status == STATUS_BUSY || cs.status == STATUS_HALT){
-    sm->move_id = mstate.move_id;
-  }else{
-    sm->move_id = 0;
-  }
-
-  sm->override = fstate.current;
-  
-  for(int i = 0; i < NUM_AXIS; i++){
-    sm->pos[i] = mstate.position[i];
-  }
-  
-}
-
 void error_and_die(const char* message){
   Serial.write(MESSAGE_ERROR);
   Serial.write(message);
@@ -57,11 +37,11 @@ void handle_message(message_type_t mess){
     cs.have_handshook = 1;
   } break;
 
-  case MESSAGE_ASK:
-    build_status_message((status_message_t*) message_buffer);
-    send_message(MESSAGE_STATUS, message_buffer);
+  case MESSAGE_ASK:{
+    send_status_message(*(uint32_t*) message_buffer);
     break;
-
+  }
+    
   case MESSAGE_BUFFER:{
     uint32_t* message = (uint32_t*) message_buffer;
     cs.expect_request_id = message[0];
@@ -159,9 +139,11 @@ int main(void){
       cs.serial_active = 1;
       cs.have_handshook = 0;
       cs.suppress_buffer_count = 0;
-      cs.status = STATUS_IDLE;
       cs.expect_request_id = 0;
       cs.buffer_done = 1;
+      cs.status = STATUS_IDLE;
+      cs.last_status_time = 0;
+      
       initialize_motion_state();
     }
     // Check for serial input
@@ -186,6 +168,8 @@ int main(void){
 	handle_message((message_type_t) message_type);
 	message_started = 0;
       }
+    }else{
+      check_status_interval();
     }
   }
 }

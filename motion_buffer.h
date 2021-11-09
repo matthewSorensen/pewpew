@@ -57,7 +57,7 @@ typedef struct feedrate_state_t {
 } feedrate_state_t;
 
 // Must be a power of two
-#define MOTION_BUFFER_SIZE 128 
+#define MOTION_BUFFER_SIZE 512
 #define MOTION_BUFFER_MASK (MOTION_BUFFER_SIZE - 1)
 
 extern motion_segment_t motion_buffer[MOTION_BUFFER_SIZE];
