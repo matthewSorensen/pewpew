@@ -171,7 +171,7 @@ void stepper_isr(void){
 
   if(mstate.move != NULL){
     if(mstate.move_flag){
-      uint32_t delay = execute_event((event_segment_t*) mstate.move, 0, !!mstate.event_first_trigger);
+      int32_t delay = execute_event((event_segment_t*) mstate.move, 0, !!mstate.event_first_trigger);
       mstate.event_first_trigger = 0;
       if(delay < 0){
 	// The special event wants to hand off execution somewhere else, and will

@@ -19,7 +19,7 @@ typedef enum event_type_t {
 
 // Immediate events must not return a delay, or access any event state - the delay will be
 // ignored, and the immediate event may interfere with a sleeping event.
-uint32_t execute_event(event_segment_t* event,uint32_t is_immediate,uint32_t is_initial);
+int32_t execute_event(event_segment_t* event,uint32_t is_immediate,uint32_t is_initial);
 
 
 #endif
