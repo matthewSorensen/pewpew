@@ -76,6 +76,7 @@ void homing_isr(void){
     PIT_TCTRL1 = TIE | TEN; // Trigger the next pulse
   }else{
     set_status(STATUS_IDLE);
+    send_status_message(0);
     attachInterruptVector(IRQ_PIT,stepper_isr);
   }
 }
@@ -119,5 +120,6 @@ void start_homing(void* message){
   PIT_LDVAL1 = step_delay;
   PIT_TCTRL1 = TIE | TEN;
   cs.status = STATUS_HOMING;
+  send_status_message(0);
 }
 

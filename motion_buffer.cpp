@@ -247,6 +247,7 @@ void start_motion(void){
   PIT_TCTRL1 = TIE;
   // Record that we're moving
   cs.status = STATUS_BUSY;
+  send_status_message(0);
   // Then manually call the ISR to fire the first step of the move
   trigger_stepper_isr();
 }
@@ -277,6 +278,7 @@ void finish_motion(uint32_t is_halt){
     else
       cs.status = STATUS_BUFFER_UNDERFLOW;
   }
+  send_status_message(0);
 }
 
 
