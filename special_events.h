@@ -21,5 +21,6 @@ typedef enum event_type_t {
 // ignored, and the immediate event may interfere with a sleeping event.
 int32_t execute_event(event_segment_t* event,uint32_t is_immediate,uint32_t is_initial);
 
+void shutdown_events();
 
 #endif

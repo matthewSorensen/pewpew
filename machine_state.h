@@ -44,6 +44,8 @@ void send_status_message(uint32_t request_id);
 void set_status(status_flag_t);
 
 void check_status_interval(void);
+
+void error_and_die(const char*);
 #endif
 
 

@@ -8,15 +8,6 @@
 #include "special_events.h"
 #include "homing.h"
 
-
-
-void error_and_die(const char* message){
-  Serial.write(MESSAGE_ERROR);
-  Serial.write(message);
-  Serial.write('\n');
-  while(1) delay(1000);
-}
-
 void send_message(message_type_t message, uint8_t* body){
   Serial.write((char) message);
   Serial.write(body, message_sizes[message - 1]);
@@ -129,7 +120,8 @@ int main(void){
     // Track the falling and rising edges of the serial connection    
     if(!Serial){
       if(cs.serial_active){
-	// Probably should stop motion here too
+	shutdown_motion();
+	shutdown_events();
 	cs.serial_active = 0;
       }
       delay(100);

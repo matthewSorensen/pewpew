@@ -7,3 +7,8 @@
 int32_t execute_event(event_segment_t* event, uint32_t is_immediate, uint32_t is_initial){  
   return 0;
 }
+
+
+void shutdown_events(){
+}
+

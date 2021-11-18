@@ -1,5 +1,6 @@
 #include "machine_state.h"
 #include "motion_buffer.h"
+#include "special_events.h"
 #include <Arduino.h>
 
 volatile comm_state_t cs;
@@ -55,4 +56,13 @@ void check_status_interval(void){
   if(elapsed > 250)
     send_status_message(0);
 
+}
+
+void error_and_die(const char* message){
+  shutdown_motion();
+  shutdown_events();
+  Serial.write(MESSAGE_ERROR);
+  Serial.write(message);
+  Serial.write('\n');
+  while(1) delay(1000);
 }

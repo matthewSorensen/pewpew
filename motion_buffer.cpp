@@ -309,3 +309,8 @@ void set_override(double value, double velocity, uint32_t active){
     fstate.changing = 0;
   }
 }
+
+void shutdown_motion(void){
+  // Turn off the stepper ISR, but not the step pulse reset ISR
+  PIT_TCTRL1 = 0;
+}
