@@ -1,4 +1,3 @@
-import serial
 import sys
 import time
 import numpy as np
@@ -20,7 +19,7 @@ with MachineConnection(sys.argv[-1]) as m:
 
     # Build a motion planner with the right number of axes and some fake microsteps/velocities limits/acceleration limits
     ones = np.ones(len(status.position))
-    limits = KinematicLimit(v_max = 5 * ones, a_max = 10 * one, junction_speed = 0.05, junction_deviation = 0.1)
+    limits = KinematicLimits(v_max = 5 * ones, a_max = 10 * ones, junction_speed = 0.05, junction_deviation = 0.1)
     planner = MotionPlanner(limits, microsteps = 100 * ones, position = np.zeros_like(ones))
     planner.set_position(status.position, microsteps = True)
     

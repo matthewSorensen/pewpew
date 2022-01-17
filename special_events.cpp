@@ -12,3 +12,8 @@ int32_t execute_event(event_segment_t* event, uint32_t is_immediate, uint32_t is
 void shutdown_events(){
 }
 
+void build_peripheral_status(uint8_t*buff){
+  for(int i = 0; i < PERIPHERAL_STATUS; i++){
+    buff[i] = i;
+  }
+}

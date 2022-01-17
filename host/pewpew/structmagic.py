@@ -104,6 +104,7 @@ class CParam:
 
     
 type_to_struct = {}
+type_to_struct[np.uint8] = 'c', 'uint8_t', 1
 type_to_struct[np.uint32] = 'L', 'uint32_t', 4
 type_to_struct[np.int32] = 'l', 'int32_t', 4
 type_to_struct[np.uint64] = 'Q', 'uint64_t', 8

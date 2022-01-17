@@ -4,13 +4,10 @@
 #include <stdint.h>
 
 #define NUM_AXIS 3
-
+#define PERIPHERAL_STATUS 0
 // These definitions aren't entirely orthagonal from the
-// pin defs in pin_maps.h, alas...
+// pin defs in pin_maps.cpp, alas...
 
-
-//#define STEP_SET   GPIO6_DR_SET
-//#define STEP_CLEAR GPIO6_DR_CLEAR
 
 #define STEP_SET   GPIO6_DR_CLEAR
 #define STEP_CLEAR GPIO6_DR_SET

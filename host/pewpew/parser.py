@@ -4,7 +4,7 @@ from pewpew.definitions import MessageType, StatusFlag, initial_structs, variabl
 from pewpew.definitions import SystemDescription, BufferMessage, Ask
 from pewpew.structmagic import TableEntry
 
-def protocol_handshake(serial_port):
+def protocol_handshake(serial_port, quiet = False):
     """ Make contact with a device - send an INQUIRE message, and wait
     for a DESCRIBE message. Returns a fully-initialized set of structs,
     the number of axes, and the magic number. """
@@ -16,12 +16,16 @@ def protocol_handshake(serial_port):
     response = serial_port.read(entry.size + 1)
     
     if MessageType(response[0]) != SystemDescription.tag or len(response) < entry.size + 1:
-        print("Did not receive DESCRIBE packet - instead, got ", response)
+        if not quiet:
+            print("Did not receive DESCRIBE packet - instead, got ", response)
         return None
 
     d = entry.decode(response[1:])
-    print(f"Found protocol version {d.version}, with {d.axis_count} motion axes and magic number {d.magic}. Motion buffer is {d.buffer_size} segments.")
-    return d, variable_structs(structs, d.axis_count)
+    if not quiet:
+        print(f"Found protocol version {d.version}, with {d.axis_count} motion axes, and magic number {d.magic}.")
+        print(f"Motion buffer is {d.buffer_size} segments, and peripheral status are {d.peripheral_status} bytes")
+
+    return d, variable_structs(structs, d.axis_count, d.peripheral_status)
 
 
 def sequence_number():
@@ -35,7 +39,7 @@ def sequence_number():
 
 class ProtocolParser:
 
-    PROTOCOL_VERSION = 1
+    PROTOCOL_VERSION = 2
 
     @staticmethod
     def connect_to_port(serial):

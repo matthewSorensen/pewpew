@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include "pin_maps.h"
 
-#define MAX_MESSAGE 12
+#define MAX_MESSAGE 14
 
 typedef enum message_type_t {
     MESSAGE_INQUIRE = 1,
@@ -19,7 +19,9 @@ typedef enum message_type_t {
     MESSAGE_HOME = 9,
     MESSAGE_START = 10,
     MESSAGE_OVERRIDE = 11,
-    MESSAGE_ERROR = 12
+    MESSAGE_ERROR = 12,
+    MESSAGE_QUIZ = 13,
+    MESSAGE_PERIPHERAL = 14
 } message_type_t;
 
 typedef enum homing_phase_t {
@@ -37,6 +39,6 @@ typedef enum status_flag_t {
     STATUS_BUFFER_UNDERFLOW = 6
 } status_flag_t;
 
-extern const uint32_t message_sizes[12];
+extern const uint32_t message_sizes[14];
 extern uint8_t message_buffer[24 + 8 * NUM_AXIS];
 #endif

@@ -60,6 +60,8 @@ class WorkerSignals:
 
         self.status_lock = threading.Lock()
         self.status = None
+        self.peripheral = None
+        
 
         self.busy = threading.Event()
         self.idle = threading.Event()
@@ -116,13 +118,17 @@ def worker_loop(port_path, signals):
                     signals.idle.set()
                     
                 signals.status_lock.release()
-                    
+                
             elif isinstance(message, defs.BufferMessage):
                 if message.request_counter == parser.buffer_number:
                     if message.spaces == 0:
                         parser.invalidate_request()
                     else:
                         can_send = message.spaces
+            elif isinstance(message,defs.PeripheralStatus):
+                signals.status_lock.acquire()
+                signals.peripheral = message
+                signals.status_lock.release()
             else:
                 print(message)
 

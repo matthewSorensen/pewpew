@@ -9,13 +9,26 @@ from pewpew.structmagic import CParam, TableEntry
 import numpy as np
 from dataclasses import dataclass
 
-# At the moment, our structs only have one size parameter
+
 NUM_AXIS = CParam("NUM_AXIS")
+PERIPHERAL_STATUS = CParam("PERIPHERAL_STATUS")
+
+# What do these do? It's slightly tricky, and maybe too clever. A given instance
+# of firmware running on a device knows how many axes it has, and how big its peripheral
+# device status updates are. However, this client code needs to be agnostic to that -
+# but when we compute message sizes to build a parser, we need to be able to express structures in
+# terms of this values.
+
+# A bit of ill-advised use of type annotations in structmagic.py takes care of this - if
+# it's given a dataclass with all of its fields annotated as either fixed sized atomic types
+# (numpy ints, float, double...) or tuples of (atomic type, count), where count is an expression
+# build from integers, CParams, +, and *, it'll magically do everything correctly after the
+# initial protocol handshake that retrieves the parameters from the firmware.
+
 
 class MessageType(Enum):
-    # Host sends an INQUIRE message, and waits for a DESCRIBE message. This may contain sundry data,
-    # but most critically, it contains the number of axes the system is compiled for, which is used to
-    # set the NUM_AXIS parameter and determine all struct sizes.
+    # Host sends an INQUIRE message, and waits for a DESCRIBE message containing the aforementioned
+    # size parameters, among other information. See the SystemDescription dataclass.
     INQUIRE = auto()
     DESCRIBE = auto()
 
@@ -42,6 +55,10 @@ class MessageType(Enum):
     # any debug info should be sought elsewhere
     ERROR = auto()
 
+    # Request a peripheral status message, and get one
+    QUIZ = auto()
+    PERIPHERAL = auto()
+
     @staticmethod
     def to_enum(obj):
         try:
@@ -54,6 +71,7 @@ class MessageType(Enum):
 # DONE is a single byte
 # START is a single byte
 # ERROR is a single byte
+# QUIZ is a single byte
 
 @dataclass
 class SystemDescription:
@@ -63,6 +81,8 @@ class SystemDescription:
     axis_count: np.uint32 # The number of axes in the system - used to set NUM_AXIS for other messages
     magic: np.uint32 # A random magic number. Intended for ID'ing particular machines?
     buffer_size: np.uint32  # How many slots are there in the motion/event buffer
+    peripheral_status: np.uint32 # How many bytes is a peripheral status message?
+    
 
 @dataclass
 class Ask:
@@ -140,6 +160,13 @@ class OverrideMessage:
     
     override : float
     override_velocity : float
+
+@dataclass
+class PeripheralStatus:
+    tag = MessageType.PERIPHERAL
+
+    data : (np.uint8, PERIPHERAL_STATUS)
+    
     
 def initial_structs():
     """ Structs for the messages with fixed sizes - we can always parse these,
@@ -155,14 +182,14 @@ def initial_structs():
     return encode, decode
 
 
-def variable_structs(d,axes):
+def variable_structs(d,axes,sbytes):
     """ Once we've completed the INQUIRE/DESCRIBE handshake, we can parse/pack everything. Build
     the rest of the structs, with the right axis size """
     
-    env = {"NUM_AXIS" : axes}
+    env = {"NUM_AXIS" : axes, "PERIPHERAL_STATUS" : sbytes}
     encode, decode = d
     
-    for cls in [SpecialEvent,Status, Segment, Immediate]:
+    for cls in [SpecialEvent,Status, Segment, Immediate, PeripheralStatus]:
         entry = TableEntry.make_entry(cls, env)
         encode[cls] = entry
         decode[cls.tag] = entry
