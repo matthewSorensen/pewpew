@@ -1,33 +1,30 @@
 import serial
 import sys
-import os
-from pewpew import MessageType, ProtocolParser, execute_segments
+import time
+import numpy as np
 
+from pewpew.planner import MotionPlanner, KinematicLimits
+from pewpew import MachineConnection
 
 if len(sys.argv) < 2:
     print("Usage: example.py <path to usb device>")
     exit()
 
-# Connect to the USB serial port given as the last argument, and perform a device
-# handshake.
-ser = serial.Serial(sys.argv[-1])
-parser = ProtocolParser.connect_to_port(ser)
+with MachineConnection(sys.argv[-1]) as m:
 
-# Build a list of segments that moves some distance along axis 0 and then returns to the origin.
-# This has no acceleration planning or idea of actual steps per mm, and thus may be dangerous to
-# run on real hardware.
-speed = 0.001 # 0.001 steps per microsecond
-steps = 1000  
-events = [(MessageType.SEGMENT, (0,0, 0.001, 0.001, steps, 0)),(MessageType.SEGMENT, (1,0, 0.001, 0.001, 0, 0))]
+    # Wait until the machine sends us a valid status
+    status = None
+    while not status:
+        status = m.status()
+        time.sleep(0.25)
 
-# Execute the list of events, yielding a generator of status updates. This must be consumed in
-# real time, or the host code will stall.
-for response in execute_segments(parser, iter(events)):
-    print(response)
-
-# Close the serial port, and put the device into a reset mode.
-ser.close()
-
-
-
-
+    # Build a motion planner with the right number of axes and some fake microsteps/velocities limits/acceleration limits
+    ones = np.ones(len(status.position))
+    limits = KinematicLimit(v_max = 5 * ones, a_max = 10 * one, junction_speed = 0.05, junction_deviation = 0.1)
+    planner = MotionPlanner(limits, microsteps = 100 * ones, position = np.zeros_like(ones))
+    planner.set_position(status.position, microsteps = True)
+    
+    # Trigger a move to (1,1,...) and then back to (0,0....)
+    m.buffered_messages(planner.goto(*ones))
+    m.buffered_messages(planner.goto(*np.zeros_like(ones)))
+    m.wait_until_idle()
