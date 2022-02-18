@@ -1,4 +1,5 @@
 // Auto-generated file containing enum definitions shared with python client. Do not edit directly!
+// Regenerate by running host/pewpew/codegen.py from the project home directory.
 #ifndef protocol_constants_h 
 #define protocol_constants_h
 
@@ -39,6 +40,11 @@ typedef enum status_flag_t {
     STATUS_BUFFER_UNDERFLOW = 6
 } status_flag_t;
 
+typedef union {char field0[8*NUM_AXIS+24]; char field1[PERIPHERAL_STATUS];} message_buffer_size;
+
+#define MESSAGE_BUFFER_SIZE sizeof(message_buffer_size)
+
 extern const uint32_t message_sizes[14];
-extern uint8_t message_buffer[24 + 8 * NUM_AXIS];
+extern uint8_t message_buffer[MESSAGE_BUFFER_SIZE];
 #endif
+

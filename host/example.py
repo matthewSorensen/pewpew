@@ -4,7 +4,7 @@ import numpy as np
 
 from pewpew.planner import MotionPlanner, KinematicLimits
 from pewpew import MachineConnection
-
+from pewpew.definitions import MessageType
 if len(sys.argv) < 2:
     print("Usage: example.py <path to usb device>")
     exit()
@@ -27,3 +27,9 @@ with MachineConnection(sys.argv[-1]) as m:
     m.buffered_messages(planner.goto(*ones))
     m.buffered_messages(planner.goto(*np.zeros_like(ones)))
     m.wait_until_idle()
+
+
+    for i in range(10):
+        m.realtime_message(MessageType.QUIZ)
+        print(m.signals.peripheral)
+        time.sleep(0.5)

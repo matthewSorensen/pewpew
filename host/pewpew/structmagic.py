@@ -83,7 +83,7 @@ class CParam:
     def cexpr(expr):
         if isinstance(expr, int):
             return str(expr), False
-        elif isinstance(expr, CParam):
+        elif dataclasses.is_dataclass(expr):
             if expr.name is not None:
                 return expr.name, False
             else:
@@ -98,10 +98,86 @@ class CParam:
                         l = '(' + l + ')'
                     if rp:
                         r = '(' + r + ')'
-                    return l + '*' + r, False        
+                    return l + '*' + r, False
+               
         raise ValueError
 
+    @staticmethod
+    def expanded(expr):
+        """ Expand an expression into a sum of monomials, represented as a dict """
+        if isinstance(expr, int):
+            return {() : expr}
+        elif dataclasses.is_dataclass(expr):
+            if expr.name is not None:
+                return {((expr.name,1),) : 1}
+            else:
+                op,l,r = expr.expr
+                l = CParam.expanded(l)
+                r = CParam.expanded(r)
+                if op == '+':
+                    for k,v in r.items():
+                        if k in l:
+                            l[k] += v
+                        else:
+                            l[k] = v
+                    return l
+                elif op == '*':
+                    ret = {}
+                    for k,v in l.items():
+                        for l,w in r.items():
+                            key = None
+                            if k == ():
+                                key = l
+                            elif l == ():
+                                key = k
+                            else:
+                                # l is a list of ('variable', power) pairs,
+                                # as is r - all we need to do is add like terms, and then sort cannonically
+                                print(k,l)
+                                orders = {}
+                                for var,power in k:
+                                    if var in orders:
+                                        orders[var] += power
+                                    else:
+                                        orders[var] = power
+                                for var,power in l:
+                                    if var in orders:
+                                        orders[var] += power
+                                    else:
+                                        orders[var] = power
+                                key = tuple(sorted(orders.items(), key = lambda x: x[0]))
+                            ret[key] = v * w
+                    return ret
+        raise ValueError
+    
+    @staticmethod
+    def compare_expanded(s,p):
 
+        ks,kp = set(s.keys()), set(p.keys())
+        common = ks & kp
+
+        p_bigger = any(s[k] < p[k] for k in common)
+        s_bigger = any(p[k] < s[k] for k in common)
+
+        # If we can't order the shared terms, don't try to order the rest of it
+        if p_bigger and s_bigger:
+            return None
+        # Otherwise, they are exactly equal on a (possible empty) set of common terms
+        if not (p_bigger or s_bigger):
+            if ks.issubset(kp):
+                return False, True
+            if kp.issubset(ks):
+                return True, False
+            return None
+
+        if p_bigger and ks.issubset(kp):
+            return False, True
+        
+        if s_bigger and kp.issubset(ks):
+            return True, False
+            
+        return None
+        
     
 type_to_struct = {}
 type_to_struct[np.uint8] = 'c', 'uint8_t', 1
