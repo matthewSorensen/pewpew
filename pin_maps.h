@@ -4,7 +4,8 @@
 #include <stdint.h>
 
 #define NUM_AXIS 3
-#define PERIPHERAL_STATUS 0
+#define PERIPHERAL_STATUS 1
+#define SPECIAL_EVENT_SIZE 0
 // These definitions aren't entirely orthagonal from the
 // pin defs in pin_maps.cpp, alas...
 

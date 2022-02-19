@@ -11,13 +11,14 @@ from dataclasses import dataclass
 
 
 NUM_AXIS = CParam("NUM_AXIS")
+SPECIAL_EVENT_SIZE = CParam("SPECIAL_EVENT_SIZE")
 PERIPHERAL_STATUS = CParam("PERIPHERAL_STATUS")
 
 # What do these do? It's slightly tricky, and maybe too clever. A given instance
-# of firmware running on a device knows how many axes it has, and how big its peripheral
-# device status updates are. However, this client code needs to be agnostic to that -
-# but when we compute message sizes to build a parser, we need to be able to express structures in
-# terms of this values.
+# of firmware running on a device knows how many axes it has, how much information
+# its special events need, and how big its peripheral device status updates are.
+# However, this client code needs to be agnostic to that - but when we compute message
+# sizes to build a parser, we need to be able to express structures in terms of this values.
 
 # A bit of ill-advised use of type annotations in structmagic.py takes care of this - if
 # it's given a dataclass with all of its fields annotated as either fixed sized atomic types
@@ -44,6 +45,7 @@ class MessageType(Enum):
     
     # And the actual messages we care about - motion segments, immediate segments, and homing moves
     SEGMENT = auto()  # Host sends a segment to go into the execution buffer
+    SPECIAL = auto()
     IMMEDIATE = auto() # Host sends a segment that gets executed instantly, and isn't buffered
     HOME = auto()     # Host starts a homing cycle
 
@@ -82,9 +84,10 @@ class SystemDescription:
     magic: np.uint32 # A random magic number. Intended for ID'ing particular machines?
     buffer_size: np.uint32  # How many slots are there in the motion/event buffer
     peripheral_status: np.uint32 # How many bytes is a peripheral status message?
+    special_event_size: np.uint32 # How many 8-byte "slots" are there in special event packets?
 
     def param_dict(self):
-        return {"NUM_AXIS" : self.axis_count, "PERIPHERAL_STATUS" : self.peripheral_status}
+        return {"NUM_AXIS" : self.axis_count, "PERIPHERAL_STATUS" : self.peripheral_status, "SPECIAL_EVENT_SIZE" : self.special_event_size}
 
 @dataclass
 class Ask:
@@ -129,19 +132,19 @@ class Segment:
 
 @dataclass
 class SpecialEvent:
-    tag = MessageType.SEGMENT
+    tag = MessageType.SPECIAL
     
     move_id : np.uint32
     move_flag : np.uint32
-    coords: (float, 2 + NUM_AXIS)
+    slots: (float, SPECIAL_EVENT_SIZE)
 
 @dataclass
 class Immediate:
-    tag = MessageType.SEGMENT
+    tag = MessageType.IMMEDIATE
     
     move_id : np.uint32
     move_flag : np.uint32
-    coords: (float, 2 + NUM_AXIS)
+    slots: (float, SPECIAL_EVENT_SIZE)
 
 class HomingCyclePhase(Enum):
     APPROACH = auto()
@@ -190,7 +193,7 @@ def variable_structs(d,env):
     
     encode, decode = d
     
-    for cls in [SpecialEvent,Status, Segment, Immediate, PeripheralStatus]:
+    for cls in [SpecialEvent,Status, Segment, SpecialEvent, Immediate, PeripheralStatus]:
         entry = TableEntry.make_entry(cls, env)
         encode[cls] = entry
         decode[cls.tag] = entry

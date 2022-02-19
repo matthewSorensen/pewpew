@@ -25,6 +25,7 @@ void handle_message(message_type_t mess){
     params[2] = 1337; // Device number? IDK. I like inventing random undescribed fields in new protocols.
     params[3] = MOTION_BUFFER_SIZE; // Also important for the sender to know, but not critical.
     params[4] = PERIPHERAL_STATUS; // Peripheral status message byte count
+    params[5] = SPECIAL_EVENT_SIZE;
     send_message(MESSAGE_DESCRIBE, message_buffer);
     cs.have_handshook = 1;
   } break;
@@ -45,14 +46,21 @@ void handle_message(message_type_t mess){
     break;
 
     
-  case MESSAGE_SEGMENT:{
+  case MESSAGE_SEGMENT:
+  case MESSAGE_SPECIAL:  {
     segment_t* dest = next_free_segment();
     if(!dest){
       error_and_die("Motion buffer overflow");
     }
-    memcpy(dest, message_buffer, sizeof(segment_t));
+    // Copy the correct amount of data over to the segment
+    memcpy(dest, message_buffer, (mess == MESSAGE_SEGMENT) ? sizeof(motion_segment_t) : sizeof(event_segment_t));
     mstate.buffer_size++;
-    
+
+    // Check that a special event flag is properly differentiated
+    if(mess == MESSAGE_SPECIAL && (0 == dest->event.move_flag))
+      error_and_die("Special event segment with invalid (0) event type flag");
+
+    // See if we need to send a buffer message in response
     if(cs.suppress_buffer_count <= 1){
       uint32_t* message = (uint32_t*) message_buffer;
       message[0] = cs.expect_request_id;

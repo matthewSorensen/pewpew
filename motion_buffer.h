@@ -18,7 +18,7 @@ typedef struct motion_segment_t {
 typedef struct event_segment_t {
   uint32_t move_id;
   uint32_t move_flag;
-  double args[NUM_AXIS + 2];
+  double args[SPECIAL_EVENT_SIZE];
 } event_segment_t;
 
 typedef union segment_t {

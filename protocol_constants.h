@@ -6,7 +6,7 @@
 #include <stdint.h>
 #include "pin_maps.h"
 
-#define MAX_MESSAGE 14
+#define MAX_MESSAGE 15
 
 typedef enum message_type_t {
     MESSAGE_INQUIRE = 1,
@@ -16,13 +16,14 @@ typedef enum message_type_t {
     MESSAGE_BUFFER = 5,
     MESSAGE_DONE = 6,
     MESSAGE_SEGMENT = 7,
-    MESSAGE_IMMEDIATE = 8,
-    MESSAGE_HOME = 9,
-    MESSAGE_START = 10,
-    MESSAGE_OVERRIDE = 11,
-    MESSAGE_ERROR = 12,
-    MESSAGE_QUIZ = 13,
-    MESSAGE_PERIPHERAL = 14
+    MESSAGE_SPECIAL = 8,
+    MESSAGE_IMMEDIATE = 9,
+    MESSAGE_HOME = 10,
+    MESSAGE_START = 11,
+    MESSAGE_OVERRIDE = 12,
+    MESSAGE_ERROR = 13,
+    MESSAGE_QUIZ = 14,
+    MESSAGE_PERIPHERAL = 15
 } message_type_t;
 
 typedef enum homing_phase_t {
@@ -40,11 +41,11 @@ typedef enum status_flag_t {
     STATUS_BUFFER_UNDERFLOW = 6
 } status_flag_t;
 
-typedef union {char field0[8*NUM_AXIS+24]; char field1[PERIPHERAL_STATUS];} message_buffer_size;
+typedef union {char field0[8*NUM_AXIS+24]; char field1[8*SPECIAL_EVENT_SIZE+8]; char field2[PERIPHERAL_STATUS];} message_buffer_size;
 
 #define MESSAGE_BUFFER_SIZE sizeof(message_buffer_size)
 
-extern const uint32_t message_sizes[14];
+extern const uint32_t message_sizes[15];
 extern uint8_t message_buffer[MESSAGE_BUFFER_SIZE];
 #endif
 

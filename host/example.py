@@ -4,7 +4,7 @@ import numpy as np
 
 from pewpew.planner import MotionPlanner, KinematicLimits
 from pewpew import MachineConnection
-from pewpew.definitions import MessageType
+from pewpew.definitions import MessageType, SpecialEvent
 if len(sys.argv) < 2:
     print("Usage: example.py <path to usb device>")
     exit()
@@ -31,7 +31,9 @@ with MachineConnection(sys.argv[-1]) as m:
     m.wait_until_idle()
     print(m.status())
 
-    for i in range(10):
-        m.realtime_message(MessageType.QUIZ)
-        print(m.signals.peripheral)
-        time.sleep(0.5)
+    # Send a special event to toggle the led, wait a bit, and then toggle it again
+    m.buffered_messages([SpecialEvent(0,1,[])])
+    time.sleep(1.0)
+    m.buffered_messages([SpecialEvent(0,1,[])])
+    m.wait_until_idle()
+

@@ -23,7 +23,7 @@ def protocol_handshake(serial_port, quiet = False):
     d = entry.decode(response[1:])
     if not quiet:
         print(f"Found protocol version {d.version}, with {d.axis_count} motion axes, and magic number {d.magic}.")
-        print(f"Motion buffer is {d.buffer_size} segments, and peripheral status are {d.peripheral_status} bytes")
+        print(f"Motion buffer is {d.buffer_size} segments, events have {d.special_event_size} parameters, and peripheral statuses are {d.peripheral_status} bytes")
 
     return d, variable_structs(structs, d.param_dict())
 
