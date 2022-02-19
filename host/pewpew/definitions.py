@@ -82,7 +82,9 @@ class SystemDescription:
     magic: np.uint32 # A random magic number. Intended for ID'ing particular machines?
     buffer_size: np.uint32  # How many slots are there in the motion/event buffer
     peripheral_status: np.uint32 # How many bytes is a peripheral status message?
-    
+
+    def param_dict(self):
+        return {"NUM_AXIS" : self.axis_count, "PERIPHERAL_STATUS" : self.peripheral_status}
 
 @dataclass
 class Ask:
@@ -182,11 +184,10 @@ def initial_structs():
     return encode, decode
 
 
-def variable_structs(d,axes,sbytes):
+def variable_structs(d,env):
     """ Once we've completed the INQUIRE/DESCRIBE handshake, we can parse/pack everything. Build
     the rest of the structs, with the right axis size """
     
-    env = {"NUM_AXIS" : axes, "PERIPHERAL_STATUS" : sbytes}
     encode, decode = d
     
     for cls in [SpecialEvent,Status, Segment, Immediate, PeripheralStatus]:

@@ -46,11 +46,11 @@ void handle_message(message_type_t mess){
 
     
   case MESSAGE_SEGMENT:{
-    motion_segment_t* dest = next_free_segment();
+    segment_t* dest = next_free_segment();
     if(!dest){
       error_and_die("Motion buffer overflow");
     }
-    memcpy(dest, message_buffer, sizeof(motion_segment_t));
+    memcpy(dest, message_buffer, sizeof(segment_t));
     mstate.buffer_size++;
     
     if(cs.suppress_buffer_count <= 1){
@@ -66,7 +66,7 @@ void handle_message(message_type_t mess){
   } break;
 
   case MESSAGE_IMMEDIATE: {
-    event_segment_t* event = (event_segment_t*) message_buffer;
+    event_segment_t* event = &(((segment_t*) message_buffer)->event);
     
     if(!event->move_flag)
       error_and_die("Immediate events must not be motion segments\n");

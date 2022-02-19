@@ -25,7 +25,7 @@ def protocol_handshake(serial_port, quiet = False):
         print(f"Found protocol version {d.version}, with {d.axis_count} motion axes, and magic number {d.magic}.")
         print(f"Motion buffer is {d.buffer_size} segments, and peripheral status are {d.peripheral_status} bytes")
 
-    return d, variable_structs(structs, d.axis_count, d.peripheral_status)
+    return d, variable_structs(structs, d.param_dict())
 
 
 def sequence_number():
@@ -95,7 +95,7 @@ class ProtocolParser:
                         fmt, obj = self.structs[0][t].encode(message)
                     else:
                         print("parser: adding entry for", t, "dynamically")
-                        entry = TableEntry.make_entry(t, {"NUM_AXIS" : self.desc.axis_count})
+                        entry = TableEntry.make_entry(t, self.desc.param_dict())
                         self.structs[0][t] = entry
                         fmt, obj = entry.encode(message)
                         

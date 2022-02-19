@@ -63,22 +63,12 @@ def generate_protocol_constant_header(stream,sizes):
 
     stream.write(generate_enum(sizes.keys(), "message_type_t", "MESSAGE_") + '\n\n')
 
-    stream.write("""typedef enum homing_phase_t {
-    HOMING_APPROACH = 1,
-    HOMING_BACKOFF = 2,
-    HOMING_DONE = 3
-} homing_phase_t;
-
-typedef enum status_flag_t {
-    STATUS_IDLE = 1,
-    STATUS_BUSY = 2,
-    STATUS_HALT = 3,
-    STATUS_HOMING = 4,
-    STATUS_DEAD = 5,
-    STATUS_BUFFER_UNDERFLOW = 6
-} status_flag_t;""")
-
+    stream.write(generate_enum(defs.HomingCyclePhase,"homing_phase_t","HOMING_"))
     stream.write("\n\n")
+        
+    stream.write(generate_enum(defs.StatusFlag,"status_flag_t","STATUS_"))
+    stream.write("\n\n")
+    
     stream.write(build_message_buffer_union(sizes,"message_buffer_size")+'\n\n')
 
     stream.write(f"""#define MESSAGE_BUFFER_SIZE sizeof(message_buffer_size)

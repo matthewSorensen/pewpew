@@ -21,6 +21,11 @@ typedef struct event_segment_t {
   double args[NUM_AXIS + 2];
 } event_segment_t;
 
+typedef union segment_t {
+  motion_segment_t move;
+  event_segment_t event;
+} segment_t;
+
 // We can go up to 32x slower - more than that, it's interpreted as a halt.
 #define MIN_OVERRIDE (1/32.0)
 // ...and 4x faster.
@@ -32,7 +37,7 @@ typedef struct motion_state_t {
   // Track the state of the motion ring buffer
   uint32_t current_move;
   uint32_t buffer_size;
-  motion_segment_t* move;
+  segment_t* move;
   // State of the current move:
   uint32_t move_id;    // What's the current move id/number, directly taken from the move
   uint32_t move_flag;  // Move flags from the current move - if non-zero, it's actually a special event
@@ -60,13 +65,13 @@ typedef struct feedrate_state_t {
 #define MOTION_BUFFER_SIZE 512
 #define MOTION_BUFFER_MASK (MOTION_BUFFER_SIZE - 1)
 
-extern motion_segment_t motion_buffer[MOTION_BUFFER_SIZE];
+extern segment_t motion_buffer[MOTION_BUFFER_SIZE];
 extern volatile motion_state_t mstate;
 extern volatile feedrate_state_t fstate;
 
 void initialize_motion_state(void);
 uint32_t free_buffer_spaces(void);
-motion_segment_t* next_free_segment(void);
+segment_t* next_free_segment(void);
 void start_motion(void);
 void finish_motion(void);
 void stepper_isr(void);

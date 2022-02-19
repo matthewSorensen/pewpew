@@ -19,7 +19,7 @@
 #define MIN_STEP_TICKS 1500
 
 
-motion_segment_t motion_buffer[MOTION_BUFFER_SIZE];
+segment_t motion_buffer[MOTION_BUFFER_SIZE];
 volatile motion_state_t mstate;
 volatile feedrate_state_t fstate;
 
@@ -54,7 +54,7 @@ uint32_t free_buffer_spaces(void){
 // If there's space in the motion buffer for a new segment, return the segment. If not, return NULL.
 // Note that this doesn't actually record the segment as taken (by incrementing the number of elements in the buffer),
 // as otherwise the stepper ISR could see an uninitialized move!
-motion_segment_t* next_free_segment(void){
+segment_t* next_free_segment(void){
   if(MOTION_BUFFER_SIZE <= mstate.buffer_size)
     return NULL;
   return  &motion_buffer[(mstate.current_move + mstate.buffer_size) & MOTION_BUFFER_MASK];
@@ -108,7 +108,7 @@ void compute_next_step(void){
 // Returns 1 if there's something left to do - either steps or a delay. Sets all the relevant fields
 // in the motion state.
 uint32_t initialize_next_seg(uint32_t first){
-  motion_segment_t* move;
+  segment_t* move;
   double dt;
   // If we're not starting a series of moves, advance along the ring buffer and
   // release the previous move.
@@ -125,8 +125,8 @@ uint32_t initialize_next_seg(uint32_t first){
 
   move = &motion_buffer[mstate.current_move];
   mstate.move = move;
-  mstate.move_id = move->move_id;
-  mstate.move_flag = move->move_flag;
+  mstate.move_id = move->move.move_id;
+  mstate.move_flag = move->move.move_flag;
   // If it's a special event, don't initialize the dda...
   if(mstate.move_flag){
     mstate.event_first_trigger = 1;
@@ -135,15 +135,15 @@ uint32_t initialize_next_seg(uint32_t first){
   
   // Initialize the dda, from the end point of the last move, and the end of the new one, giving us
   // our new direction mask
-  mstate.dir_bitmask = initialize_dda(mstate.end, move->coords);
+  mstate.dir_bitmask = initialize_dda(mstate.end, move->move.coords);
   // Then we can update the end coordinates and velocity
   for(int i = 0; i<NUM_AXIS; i++){
-    mstate.end[i] = move->coords[i];
+    mstate.end[i] = move->move.coords[i];
   }
-  mstate.velocity = mstate.move->start_velocity; 
+  mstate.velocity = mstate.move->move.start_velocity; 
   // And then compute how long this move will take, as a way to find the accleration
-  dt = 2 * dda.qlength / (mstate.velocity + mstate.move->end_velocity);
-  mstate.acceleration = (mstate.move->end_velocity - mstate.velocity) / dt;
+  dt = 2 * dda.qlength / (mstate.velocity + mstate.move->move.end_velocity);
+  mstate.acceleration = (mstate.move->move.end_velocity - mstate.velocity) / dt;
 
   compute_next_step();
   return 1;
@@ -171,7 +171,7 @@ void stepper_isr(void){
 
   if(mstate.move != NULL){
     if(mstate.move_flag){
-      int32_t delay = execute_event((event_segment_t*) mstate.move, 0, !!mstate.event_first_trigger);
+      int32_t delay = execute_event(&(mstate.move->event), 0, !!mstate.event_first_trigger);
       mstate.event_first_trigger = 0;
       if(delay < 0){
 	// The special event wants to hand off execution somewhere else, and will

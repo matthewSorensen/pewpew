@@ -25,9 +25,11 @@ with MachineConnection(sys.argv[-1]) as m:
     
     # Trigger a move to (1,1,...) and then back to (0,0....)
     m.buffered_messages(planner.goto(*ones))
+    m.wait_until_idle()
+    print(m.status())
     m.buffered_messages(planner.goto(*np.zeros_like(ones)))
     m.wait_until_idle()
-
+    print(m.status())
 
     for i in range(10):
         m.realtime_message(MessageType.QUIZ)
